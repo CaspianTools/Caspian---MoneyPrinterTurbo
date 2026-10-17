@@ -8385,12 +8385,23 @@ def _render_application():
     if restore_applied or restore_succeeded:
         st.success(tr("Task Configuration Loaded"))
 
+    # 四个设置卡片以标签页展示。不设置 on_change，Streamlit 会在每次 rerun 时
+    # 渲染全部标签页，生成参数仍能从所有卡片收集；key 让当前标签页在 rerun 后保持。
+    # 卡片标题的 locale 文案带有 Markdown 加粗，标签页名称去掉星号。
+    settings_tab_labels = [
+        tr(label).replace("**", "").strip()
+        for label in (
+            "Video Script Settings",
+            "Video Settings",
+            "Audio Settings",
+            "Subtitle Settings",
+        )
+    ]
     with st.container(key="main_settings_grid"):
-        panel = st.columns(4)
-    left_panel = panel[0]
-    middle_panel = panel[1]
-    audio_panel = panel[2]
-    right_panel = panel[3]
+        left_panel, middle_panel, audio_panel, right_panel = st.tabs(
+            settings_tab_labels,
+            key=localized_widget_key("main_settings_tabs"),
+        )
 
     params = VideoParams(video_subject="")
     params.match_materials_to_script = bool(

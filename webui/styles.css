@@ -371,9 +371,7 @@ div[class*="st-key-task_row_"] button[kind="secondary"] p {
 }
 
 
-/* 中等宽度下将四个设置面板调整为 2×2。主内容区还会扣除页面边距，因此
-   1200～1440px 的常见视口不足以稳定容纳四列英文标签；断点覆盖到 1500px，
-   避免下拉内容和标题被裁切，真正的宽屏才恢复四列。 */
+/* 中等宽度下缩小品牌标题。 */
 @media (min-width: 701px) and (max-width: 1500px) {
     .mpt-brand__name {
         font-size: 2.25rem;
@@ -381,22 +379,6 @@ div[class*="st-key-task_row_"] button[kind="secondary"] p {
 
     .mpt-brand__version {
         font-size: 0.875rem;
-    }
-
-    div[class*="st-key-main_settings_grid"]
-        > div[data-testid="stLayoutWrapper"]
-        > div[data-testid="stHorizontalBlock"] {
-        flex-wrap: wrap !important;
-        gap: 1rem !important;
-    }
-
-    div[class*="st-key-main_settings_grid"]
-        > div[data-testid="stLayoutWrapper"]
-        > div[data-testid="stHorizontalBlock"]
-        > div[data-testid="stColumn"] {
-        flex: 1 1 calc(50% - 0.5rem) !important;
-        width: calc(50% - 0.5rem) !important;
-        min-width: calc(50% - 0.5rem) !important;
     }
 }
 

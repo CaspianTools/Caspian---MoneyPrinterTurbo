@@ -1296,7 +1296,7 @@ def _render_task_table(filtered_tasks, key_prefix):
                 row_cols[3].write(f"{task['progress']}%")
 
                 action_cols = row_cols[4].columns(
-                    4,
+                    5,
                     vertical_alignment="center",
                     gap="small",
                 )
@@ -1336,6 +1336,21 @@ def _render_task_table(filtered_tasks, key_prefix):
                         _queue_task_restore(task_id)
 
                 with action_cols[3]:
+                    edit_label = tr("Editor Open")
+                    if st.button(
+                        edit_label,
+                        key=f"edit_task_{key_prefix}_{task_id}",
+                        use_container_width=True,
+                        icon=":material/movie_edit:",
+                        help=edit_label,
+                        disabled=is_processing or not has_video,
+                    ):
+                        from webui import editor_view
+
+                        editor_view.open_editor(task_id)
+                        st.rerun()
+
+                with action_cols[4]:
                     delete_label = tr("Delete Task")
                     delete_help = (
                         f"{delete_label} ({tr('Task Status Processing')})"
@@ -2199,6 +2214,17 @@ def _render_current_generation_task():
     if state in {const.TASK_STATE_COMPLETE, const.TASK_STATE_FAILED}:
         _remove_active_generation_task(task_id)
         _render_generation_task_snapshot(task_id, task)
+        if state == const.TASK_STATE_COMPLETE:
+            from webui import editor_view
+
+            if editor_view.is_editable(task_id) and st.button(
+                tr("Editor Open Video"),
+                icon=":material/movie_edit:",
+                use_container_width=True,
+                key=f"edit_generated_video_{task_id}",
+            ):
+                editor_view.open_editor(task_id)
+                st.rerun()
         return
 
     _render_running_generation_task(task_id)
@@ -8584,6 +8610,12 @@ def _render_application():
         restore_succeeded = st.session_state.pop("task_restore_succeeded", False)
         if restore_applied or restore_succeeded:
             st.success(tr("Task Configuration Loaded"))
+
+    if st.session_state.get("editor_task_id"):
+        from webui import editor_view
+
+        editor_view.render_editor(tr)
+        return
 
     # 左侧是四个按步骤编号的设置标签页，右侧是摘要、生成按钮和任务进度，
     # 生成入口因此始终可见，无需滚动到页面底部。on_change="rerun" 让当前

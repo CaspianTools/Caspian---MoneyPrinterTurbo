@@ -492,6 +492,8 @@
     "Editor Loading": "Editor wird vorbereitet…",
     "Editor Not Available": "Dieses Video kann nicht bearbeitet werden: Arbeitsdateien (Sprachausgabe oder Clip-Spur) fehlen.",
     "Editor Video Select": "Video",
-    "Editor Reset": "Änderungen verwerfen"
+    "Editor Reset": "Änderungen verwerfen",
+    "Editor Music Offset": "Song beginnt bei (s)",
+    "Editor Music Locked": "Der ursprüngliche Song dieses Videos ist unbekannt. Wähle oben einen Song, um die Musik zu verschieben oder zu kürzen."
   }
 }

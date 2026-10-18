@@ -121,6 +121,10 @@
   font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden;
 }
 .mpt-ed__music--off { background: #D2D3CD; color: var(--muted); }
+.mpt-ed__music--drag { cursor: grab; border: 2px solid transparent; }
+.mpt-ed__music--sel { border-color: #10210A; }
+.mpt-ed__music--sel .mpt-ed__handle { background: rgba(0,0,0,0.18); }
+.mpt-ed__music span { overflow: hidden; text-overflow: ellipsis; }
 
 .mpt-ed__clip {
   position: absolute; top: 2px; height: 60px; border-radius: 6px; overflow: hidden; cursor: grab;

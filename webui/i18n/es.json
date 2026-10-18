@@ -492,6 +492,8 @@
     "Editor Loading": "Preparando el editor…",
     "Editor Not Available": "Este vídeo no se puede editar: faltan sus archivos de trabajo (locución o pista de clips).",
     "Editor Video Select": "Vídeo",
-    "Editor Reset": "Descartar cambios"
+    "Editor Reset": "Descartar cambios",
+    "Editor Music Offset": "La canción empieza en (s)",
+    "Editor Music Locked": "No se conoce la canción original de este vídeo. Elige una canción arriba para mover o recortar la música."
   }
 }

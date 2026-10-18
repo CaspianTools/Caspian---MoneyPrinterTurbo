@@ -492,6 +492,8 @@
     "Editor Loading": "S'està preparant l'editor…",
     "Editor Not Available": "Aquest vídeo no es pot editar: falten els fitxers de treball (veu o pista de clips).",
     "Editor Video Select": "Vídeo",
-    "Editor Reset": "Descarta els canvis"
+    "Editor Reset": "Descarta els canvis",
+    "Editor Music Offset": "La cançó comença a (s)",
+    "Editor Music Locked": "No se sap quina cançó original té aquest vídeo. Tria una cançó a dalt per moure o retallar la música."
   }
 }

@@ -492,6 +492,8 @@
     "Editor Loading": "편집기를 준비하는 중…",
     "Editor Not Available": "이 영상은 편집할 수 없습니다. 작업 파일(내레이션 또는 클립 트랙)이 없습니다.",
     "Editor Video Select": "영상",
-    "Editor Reset": "변경 사항 취소"
+    "Editor Reset": "변경 사항 취소",
+    "Editor Music Offset": "곡 시작 위치(초)",
+    "Editor Music Locked": "이 영상의 원래 곡을 알 수 없습니다. 음악을 이동하거나 자르려면 위에서 곡을 선택하세요."
   }
 }

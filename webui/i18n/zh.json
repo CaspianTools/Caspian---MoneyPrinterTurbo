@@ -672,6 +672,8 @@
     "Editor Loading": "正在准备编辑器…",
     "Editor Not Available": "此视频无法编辑：缺少工作文件（配音或素材轨）。",
     "Editor Video Select": "视频",
-    "Editor Reset": "放弃修改"
+    "Editor Reset": "放弃修改",
+    "Editor Music Offset": "歌曲起始位置（秒）",
+    "Editor Music Locked": "此视频的原始歌曲未知。请在上方选择一首歌曲后再移动或裁剪音乐。"
   }
 }

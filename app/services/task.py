@@ -1016,6 +1016,7 @@ def generate_final_videos(
 
     _progress = 50
     video_segments = {}
+    bgm_files = {}
     for i in range(params.video_count):
         index = i + 1
         if partial_results is not None:
@@ -1114,6 +1115,7 @@ def generate_final_videos(
                 warnings.append({"code": warning_code, "video_index": index})
 
         logger.info(f"\n\n## generating video: {index} => {final_video_path}")
+        bgm_log = {}
         bgm_mix_succeeded = video.generate_video(
             video_path=combined_video_path,
             audio_path=audio_file,
@@ -1121,7 +1123,12 @@ def generate_final_videos(
             output_file=final_video_path,
             params=params,
             bgm_file_override=bgm_file_override,
+            bgm_log=bgm_log,
         )
+        if bgm_log.get("file"):
+            # 随机音乐事后无法推断，记录实际使用的文件供时间线编辑器移动/裁剪。
+            bgm_files[str(index)] = bgm_log["file"]
+            task_artifacts.patch_script_data(task_id, bgm_files=dict(bgm_files))
         if (
             video_music_provider is not None
             and bgm_file_override

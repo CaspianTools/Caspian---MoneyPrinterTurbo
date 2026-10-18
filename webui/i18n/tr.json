@@ -492,6 +492,8 @@
     "Editor Loading": "Düzenleyici hazırlanıyor…",
     "Editor Not Available": "Bu video düzenlenemez: çalışma dosyaları (seslendirme veya klip izi) eksik.",
     "Editor Video Select": "Video",
-    "Editor Reset": "Değişiklikleri at"
+    "Editor Reset": "Değişiklikleri at",
+    "Editor Music Offset": "Şarkı başlangıcı (sn)",
+    "Editor Music Locked": "Bu videonun orijinal şarkısı bilinmiyor. Müziği taşımak veya kırpmak için yukarıdan bir şarkı seçin."
   }
 }

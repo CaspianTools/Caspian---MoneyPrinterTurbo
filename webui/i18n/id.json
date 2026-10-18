@@ -492,6 +492,8 @@
     "Editor Loading": "Menyiapkan editor…",
     "Editor Not Available": "Video ini tidak dapat diedit: file kerjanya (sulih suara atau trek klip) tidak ada.",
     "Editor Video Select": "Video",
-    "Editor Reset": "Buang perubahan"
+    "Editor Reset": "Buang perubahan",
+    "Editor Music Offset": "Lagu mulai pada (dtk)",
+    "Editor Music Locked": "Lagu asli video ini tidak diketahui. Pilih lagu di atas untuk memindahkan atau memangkas musik."
   }
 }

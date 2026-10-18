@@ -441,6 +441,10 @@
     "Stage Footage": "Görüntülər axtarılır və yüklənir",
     "Stage Render": "Video hazırlanır",
     "Technical Log": "Texniki jurnal",
-    "Generation Runs In Background": "Arxa planda işləyir — redaktəyə davam edə və ya bu səhifəni bağlaya bilərsiniz."
+    "Generation Runs In Background": "Arxa planda işləyir — redaktəyə davam edə və ya bu səhifəni bağlaya bilərsiniz.",
+    "New Video Heading": "Yeni video",
+    "New Video Hint": "Dörd addım. Standart ayarlar işləyir — yalnız mövzu və ya ssenari tələb olunur.",
+    "Subtitle Preview Sample": "Altyazılarınız belə görünəcək",
+    "Subtitle Preview Label": "Altyazı önizləməsi"
   }
 }

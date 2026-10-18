@@ -441,6 +441,10 @@
     "Stage Footage": "Cercar i baixar metratge",
     "Stage Render": "Renderitzar el vídeo",
     "Technical Log": "Registre tècnic",
-    "Generation Runs In Background": "S'executa en segon pla: pots continuar editant o tancar aquesta pàgina."
+    "Generation Runs In Background": "S'executa en segon pla: pots continuar editant o tancar aquesta pàgina.",
+    "New Video Heading": "Vídeo nou",
+    "New Video Hint": "Quatre passos. Els valors per defecte funcionen: només cal un tema o un guió.",
+    "Subtitle Preview Sample": "Els subtítols es veuran així",
+    "Subtitle Preview Label": "Previsualització dels subtítols"
   }
 }

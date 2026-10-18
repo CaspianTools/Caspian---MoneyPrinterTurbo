@@ -621,6 +621,10 @@
     "Stage Footage": "Find & download footage",
     "Stage Render": "Render video",
     "Technical Log": "Technical log",
-    "Generation Runs In Background": "Runs in the background — you can keep editing or close this page."
+    "Generation Runs In Background": "Runs in the background — you can keep editing or close this page.",
+    "New Video Heading": "New video",
+    "New Video Hint": "Four steps. The defaults work — only a topic or a script is required.",
+    "Subtitle Preview Sample": "Your subtitles will look like this",
+    "Subtitle Preview Label": "Subtitle preview"
   }
 }

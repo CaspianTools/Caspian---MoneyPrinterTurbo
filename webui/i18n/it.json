@@ -441,6 +441,10 @@
     "Stage Footage": "Ricerca e download dei filmati",
     "Stage Render": "Rendering del video",
     "Technical Log": "Registro tecnico",
-    "Generation Runs In Background": "Viene eseguito in background: puoi continuare a modificare o chiudere questa pagina."
+    "Generation Runs In Background": "Viene eseguito in background: puoi continuare a modificare o chiudere questa pagina.",
+    "New Video Heading": "Nuovo video",
+    "New Video Hint": "Quattro passaggi. Le impostazioni predefinite funzionano: serve solo un argomento o un testo.",
+    "Subtitle Preview Sample": "I sottotitoli appariranno così",
+    "Subtitle Preview Label": "Anteprima sottotitoli"
   }
 }

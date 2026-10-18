@@ -5014,7 +5014,7 @@ def _render_loomloom_script_generation(params):
 def _render_script_settings(panel, params):
     """渲染文案设置并更新生成参数。"""
     with panel:
-        with st.container(border=True):
+        with st.container(border=True, key="settings_card_script"):
             st.write(tr("Video Script Settings"))
             # 标签行需要容纳“配置大模型”入口，因此无法继续使用 text_area
             # 内置标签。把标签和输入框收进同一个字段容器后，可覆盖内部间距，
@@ -5227,7 +5227,7 @@ def _render_video_settings(panel, params):
     """渲染视频设置并返回本次选择的本地素材。"""
     uploaded_files = []
     with panel:
-        with st.container(border=True):
+        with st.container(border=True, key="settings_card_video"):
             st.write(tr("Video Settings"))
             video_concat_modes = [
                 (tr("Sequential"), "sequential"),
@@ -6934,7 +6934,7 @@ def _render_background_music_settings(params, elevenlabs_api_key_rendered=False)
 def _render_audio_settings(panel, params):
     """渲染音频设置并返回上传音频与当前配音模式。"""
     with panel:
-        with st.container(border=True):
+        with st.container(border=True, key="settings_card_audio"):
             st.write(tr("Audio Settings"))
 
             # 配音方式是音频设置的一级状态，负责明确区分自动配音、用户上传和无配音。
@@ -7638,7 +7638,7 @@ def _render_audio_settings(panel, params):
 def _render_subtitle_settings(panel, params):
     """渲染字幕设置并更新生成参数。"""
     with panel:
-        with st.container(border=True):
+        with st.container(border=True, key="settings_card_subtitle"):
             st.write(tr("Subtitle Settings"))
             st.session_state.setdefault(
                 "subtitle_enabled_checkbox",
@@ -8488,13 +8488,80 @@ def _render_video_summary(params, voice_mode):
         (tr("Summary Music"), music_summary),
         (tr("Summary Subtitles"), subtitle_summary),
     ]
+    # 摘要值来自用户输入（主题、音色名），全部转义后再拼入 HTML。
+    summary_rows = "".join(
+        f"<dt>{html.escape(label)}</dt><dd>{html.escape(str(value))}</dd>"
+        for label, value in rows
+    )
     with st.container(border=True, key="video_summary_card"):
-        st.markdown(f"**{tr('Video Summary')}**")
-        # 摘要值来自用户输入（主题、音色名），作为纯文本渲染，避免 Markdown 注入。
-        for label, value in rows:
-            label_column, value_column = st.columns([0.38, 0.62])
-            label_column.caption(label)
-            value_column.text(str(value))
+        st.markdown(
+            f"<div class='mpt-summary__title'>{html.escape(tr('Video Summary'))}</div>"
+            + _subtitle_preview_html(params)
+            + f"<dl class='mpt-summary'>{summary_rows}</dl>",
+            unsafe_allow_html=True,
+        )
+
+
+_HEX_COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+
+
+def _preview_color(value, fallback):
+    value = str(value or "").strip()
+    return value if _HEX_COLOR_PATTERN.match(value) else fallback
+
+
+def _subtitle_preview_html(params):
+    """按当前画幅和字幕设置绘制一帧示意预览，帮助用户在生成前确认字幕样式。
+
+    浏览器无法直接使用服务器上的字体文件，因此只模拟颜色、描边、背景、
+    字号和位置；文字取自文案第一句或主题，全部 HTML 转义。
+    """
+    aspect = VideoAspect(params.video_aspect)
+    frame_width, frame_height = {
+        VideoAspect.portrait: (180, 320),
+        VideoAspect.landscape: (300, 169),
+        VideoAspect.square: (240, 240),
+    }[aspect]
+    # 成片短边为 1080px；按预览框短边等比缩放字号与描边。
+    scale = min(frame_width, frame_height) / 1080
+    caption = ""
+    if params.subtitle_enabled:
+        source_text = " ".join((params.video_script or "").split())
+        sample = re.split(r"(?<=[.!?。！？])\s*", source_text, maxsplit=1)[0]
+        sample = sample or (params.video_subject or "").strip()
+        sample = sample or tr("Subtitle Preview Sample")
+        if len(sample) > 48:
+            sample = sample[:48].rstrip() + "…"
+        font_px = max(7.0, params.font_size * scale)
+        stroke_px = max(0.0, params.stroke_width * scale)
+        position = {
+            "top": "top: 8%;",
+            "center": "top: 50%; transform: translateY(-50%);",
+            "two_thirds_bottom": "top: 66%;",
+            "custom": f"top: {params.custom_position:.0f}%; transform: translateY(-50%);",
+        }.get(params.subtitle_position, "bottom: 8%;")
+        background = ""
+        if params.text_background_color:
+            background_color = _preview_color(params.text_background_color, "#000000")
+            radius = "6px" if params.rounded_subtitle_background else "0"
+            background = (
+                f"background: {background_color}; padding: 2px 6px;"
+                f" border-radius: {radius};"
+            )
+        caption = (
+            f"<span class='mpt-preview__caption' style='{position}'>"
+            f"<span style='color: {_preview_color(params.text_fore_color, '#FFFFFF')};"
+            f" font-size: {font_px:.1f}px;"
+            f" -webkit-text-stroke: {stroke_px:.2f}px "
+            f"{_preview_color(params.stroke_color, '#000000')};"
+            f" {background}'>{html.escape(sample)}</span></span>"
+        )
+    return (
+        f"<div class='mpt-preview' role='img' aria-label='{html.escape(tr('Subtitle Preview Label'))}'"
+        f" style='width: {frame_width}px; height: {frame_height}px;'>"
+        f"<span class='mpt-preview__hint'>{html.escape(tr('Subtitle Preview Label'))}</span>"
+        f"{caption}</div>"
+    )
 
 
 def _render_application():
@@ -8523,22 +8590,25 @@ def _render_application():
     # 标签页由服务端记录，“下一步/上一步”按钮才能切换标签页；未检查 tab.open，
     # 所以每次 rerun 仍渲染全部标签页，生成参数始终从所有卡片收集。
     # 卡片标题的 locale 文案带有 Markdown 加粗，标签页名称去掉星号。
+    # 步骤序号由 styles.css 的 CSS 计数器画成圆形徽标，标签文字保持原样。
     settings_tab_labels = [
-        f"{index} · " + tr(label).replace("**", "").strip()
-        for index, label in enumerate(
-            (
-                "Video Script Settings",
-                "Video Settings",
-                "Audio Settings",
-                "Subtitle Settings",
-            ),
-            start=1,
+        tr(label).replace("**", "").strip()
+        for label in (
+            "Video Script Settings",
+            "Video Settings",
+            "Audio Settings",
+            "Subtitle Settings",
         )
     ]
     settings_tabs_key = localized_widget_key("main_settings_tabs")
     with st.container(key="main_layout"):
         settings_column, summary_column = st.columns([0.66, 0.34], gap="large")
     with settings_column:
+        st.markdown(
+            f"<div class='mpt-page-heading'><h2>{html.escape(tr('New Video Heading'))}</h2>"
+            f"<p>{html.escape(tr('New Video Hint'))}</p></div>",
+            unsafe_allow_html=True,
+        )
         with st.container(key="main_settings_grid"):
             settings_tabs = st.tabs(
                 settings_tab_labels,

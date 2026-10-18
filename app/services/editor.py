@@ -494,6 +494,95 @@ def thumbnail_file(task_id: str, source: dict, at_seconds: float) -> str:
 
 
 # ---------------------------------------------------------------------------
+# 素材库：在线搜索替换片段
+# ---------------------------------------------------------------------------
+
+STOCK_PROVIDERS = ("pexels", "pixabay")
+MAX_STOCK_RESULTS = 24
+# 搜索结果只保存在服务端；浏览器只拿到结果 id，下载时按 id 取回原始 URL，
+# 避免把任意外部地址交给服务端下载。
+_stock_results: dict[str, dict[str, Any]] = {}
+_stock_lock = threading.Lock()
+
+
+def stock_providers() -> list[str]:
+    """返回已配置 API Key、可以搜索的素材站。"""
+    from app.config import config
+
+    return [name for name in STOCK_PROVIDERS if config.app.get(f"{name}_api_keys")]
+
+
+def task_keywords(task_id: str) -> tuple[list[str], dict[str, str]]:
+    """返回 (任务关键词列表, {素材文件名: 搜索词})，用于预填搜索框。"""
+    try:
+        payload = _load_task_params(task_id)
+    except EditorError:
+        return [], {}
+    terms = payload.get("search_terms") or payload.get("params", {}).get("video_terms") or []
+    if isinstance(terms, str):
+        terms = [term.strip() for term in re.split(r"[,，]", terms)]
+    terms = [str(term).strip() for term in terms if str(term).strip()][:30]
+    by_file = {
+        os.path.basename(str(record.get("local_file"))): str(record.get("search_term"))
+        for record in payload.get("material_sources") or []
+        if isinstance(record, dict) and record.get("local_file") and record.get("search_term")
+    }
+    return terms, by_file
+
+
+def search_stock(task_id: str, query: str, provider: str) -> list[dict[str, Any]]:
+    """按关键词搜索在线素材，返回可展示的结果（不含下载地址）。"""
+    from app.services import material
+
+    query = " ".join(str(query or "").split())[:100]
+    if not query:
+        raise EditorError("enter a search term")
+    if provider not in stock_providers():
+        raise EditorError(f"{provider} is not configured")
+    params = VideoParams(**_load_task_params(task_id)["params"])
+    search = {
+        "pexels": material.search_videos_pexels,
+        "pixabay": material.search_videos_pixabay,
+    }[provider]
+    items = search(search_term=query, minimum_duration=1, video_aspect=params.video_aspect)
+    results = []
+    with _stock_lock:
+        for item in items[:MAX_STOCK_RESULTS]:
+            info = item.source_info or {}
+            result_id = "r" + hashlib.sha1(item.url.encode("utf-8")).hexdigest()[:14]
+            _stock_results[result_id] = {
+                "url": item.url, "provider": provider, "query": query,
+                "duration": float(item.duration or 0),
+            }
+            results.append({
+                "id": result_id,
+                "provider": provider,
+                "duration": float(item.duration or 0),
+                "thumb": info.get("preview_image") or "",
+                "page": info.get("source_page") or "",
+                "creator": ((info.get("creator") or {}).get("name") or "")[:60],
+            })
+    return results
+
+
+def add_stock_source(task_id: str, project: dict, result_id: str) -> tuple[dict, str]:
+    """下载选中的在线素材并加入素材库，返回 (新工程, 素材 id)。"""
+    from app.services import material
+
+    with _stock_lock:
+        result = _stock_results.get(result_id)
+    if not result:
+        raise EditorError("this search result has expired; search again")
+    path = material.save_video(result["url"])
+    if not path or not os.path.isfile(path):
+        raise EditorError("the clip could not be downloaded")
+    updated = copy.deepcopy(project)
+    label = f"{result['provider']} · {result['query']}"[:80]
+    source_id = _register_source(updated["sources"], path, label)
+    return updated, source_id
+
+
+# ---------------------------------------------------------------------------
 # 背景音乐
 # ---------------------------------------------------------------------------
 

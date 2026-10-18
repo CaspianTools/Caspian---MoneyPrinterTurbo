@@ -177,3 +177,37 @@ def test_music_file_prefers_recorded_original(tmp_path, monkeypatch):
     assert editor.music_file("t", 2, {"mode": "keep"}) == ""
     assert editor.music_file("t", 1, {"mode": "none"}) == ""
     assert editor.music_file("t", 1, {"mode": "song", "song": "preset.mp3"}) == str(songs / "preset.mp3")
+
+
+def test_search_stock_hides_download_urls(tmp_path, monkeypatch):
+    from app.config import config
+    from app.models.schema import MaterialInfo
+    from app.services import material
+
+    monkeypatch.setattr(editor.utils, "task_dir", lambda task_id="": str(tmp_path))
+    (tmp_path / "script.json").write_text(json.dumps({"params": {"video_subject": "x"}}), encoding="utf-8")
+    monkeypatch.setitem(config.app, "pexels_api_keys", "key")
+    monkeypatch.setitem(config.app, "pixabay_api_keys", "")
+
+    def fake_search(search_term, minimum_duration, video_aspect):
+        item = MaterialInfo()
+        item.url = "https://videos.example/secret-token.mp4"
+        item.duration = 7
+        item.source_info = {"preview_image": "https://images.example/a.jpg", "creator": {"name": "Ann"}}
+        return [item]
+
+    monkeypatch.setattr(material, "search_videos_pexels", fake_search)
+    assert editor.stock_providers() == ["pexels"]
+    results = editor.search_stock("t", "  ocean   waves ", "pexels")
+    assert results == [{
+        "id": results[0]["id"], "provider": "pexels", "duration": 7.0,
+        "thumb": "https://images.example/a.jpg", "page": "", "creator": "Ann",
+    }]
+    assert "secret-token" not in json.dumps(results)
+    with pytest.raises(editor.EditorError):
+        editor.search_stock("t", "ocean", "pixabay")
+
+
+def test_add_stock_source_rejects_unknown_results(tmp_path):
+    with pytest.raises(editor.EditorError):
+        editor.add_stock_source("t", _project(tmp_path), "r-not-a-result")

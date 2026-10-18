@@ -420,6 +420,8 @@ def search_videos_pexels(
                         str(v.get("id")) if v.get("id") is not None else None
                     ),
                     "source_page": _safe_public_url(v.get("url")),
+                    # 时间线编辑器的素材替换面板用作缩略图。
+                    "preview_image": _safe_public_url(v.get("image")),
                     "creator": _creator_info(v.get("user")),
                     "rendition": {
                         "id": (
@@ -440,6 +442,17 @@ def search_videos_pexels(
         )
 
     return []
+
+
+def _pixabay_thumbnail(video_files: dict) -> str | None:
+    """Pixabay 在各清晰度条目中附带缩略图，取第一个安全的公开 URL。"""
+    for name in ("tiny", "small", "medium", "large"):
+        video = video_files.get(name)
+        if isinstance(video, dict):
+            thumbnail = _safe_public_url(video.get("thumbnail"))
+            if thumbnail:
+                return thumbnail
+    return None
 
 
 def search_videos_pixabay(
@@ -558,6 +571,8 @@ def search_videos_pixabay(
                             str(v.get("id")) if v.get("id") is not None else None
                         ),
                         "source_page": _safe_public_url(v.get("pageURL")),
+                        # 时间线编辑器的素材替换面板用作缩略图。
+                        "preview_image": _pixabay_thumbnail(video_files),
                         "creator": _creator_info(
                             {
                                 "id": v.get("user_id"),

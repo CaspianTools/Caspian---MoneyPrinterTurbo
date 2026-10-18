@@ -1582,9 +1582,13 @@ def generate_video(
     output_file: str,
     params: VideoParams,
     bgm_file_override: str | None = None,
+    bgm_log: dict | None = None,
 ) -> bool:
     """
     合成最终视频，并返回本次背景音乐处理是否成功。
+
+    传入 ``bgm_log`` 时写入实际混入的音乐文件路径（键 ``file``），供时间线
+    编辑器在随机音乐的任务中找回原曲。
 
     返回值只描述 BGM 处理状态：没有请求 BGM 或成功混合时返回 True；请求了
     BGM 但加载、特效或混合失败时返回 False。即使 BGM 失败仍会继续输出只有
@@ -1869,6 +1873,8 @@ def generate_video(
                 bgm_source_clip = clip_stack.enter_context(AudioFileClip(bgm_file))
                 bgm_clip = bgm_source_clip.with_effects(bgm_effects)
                 audio_clip = CompositeAudioClip([audio_clip, bgm_clip])
+                if bgm_log is not None:
+                    bgm_log["file"] = os.path.abspath(bgm_file)
             except Exception:
                 bgm_mix_succeeded = False
                 # 记录完整堆栈和稳定上下文，便于区分文件解码、MoviePy 特效和

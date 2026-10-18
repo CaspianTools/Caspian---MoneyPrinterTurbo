@@ -492,6 +492,8 @@
     "Editor Loading": "Redaktor hazırlanır…",
     "Editor Not Available": "Bu video redaktə edilə bilməz: iş faylları (səsləndirmə və ya klip treki) yoxdur.",
     "Editor Video Select": "Video",
-    "Editor Reset": "Dəyişiklikləri ləğv et"
+    "Editor Reset": "Dəyişiklikləri ləğv et",
+    "Editor Music Offset": "Mahnı başlanğıcı (san)",
+    "Editor Music Locked": "Bu videonun orijinal mahnısı məlum deyil. Musiqini köçürmək və ya kəsmək üçün yuxarıda mahnı seçin."
   }
 }

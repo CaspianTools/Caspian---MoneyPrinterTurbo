@@ -672,6 +672,8 @@
     "Editor Loading": "Preparing the editor…",
     "Editor Not Available": "This video can't be edited: its working files (voiceover or clip track) are missing.",
     "Editor Video Select": "Video",
-    "Editor Reset": "Discard edits"
+    "Editor Reset": "Discard edits",
+    "Editor Music Offset": "Song starts at (s)",
+    "Editor Music Locked": "The original song isn't known for this video. Choose a song above to move or trim the music."
   }
 }

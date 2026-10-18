@@ -492,6 +492,8 @@
     "Editor Loading": "Đang chuẩn bị trình chỉnh sửa…",
     "Editor Not Available": "Không thể chỉnh sửa video này: thiếu tệp làm việc (giọng đọc hoặc dải clip).",
     "Editor Video Select": "Video",
-    "Editor Reset": "Bỏ thay đổi"
+    "Editor Reset": "Bỏ thay đổi",
+    "Editor Music Offset": "Bài hát bắt đầu tại (giây)",
+    "Editor Music Locked": "Không xác định được bài hát gốc của video này. Hãy chọn một bài hát ở trên để di chuyển hoặc cắt nhạc."
   }
 }

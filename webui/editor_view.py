@@ -61,6 +61,8 @@ _JS_LABEL_KEYS = {
     "save": "Editor Save",
     "render": "Editor Render",
     "noMusic": "Editor Music None",
+    "musicOffset": "Editor Music Offset",
+    "musicLocked": "Editor Music Locked",
 }
 
 
@@ -137,26 +139,34 @@ def _project_state(task_id: str, video_index: int) -> dict:
     return cached
 
 
-def _music_preview(task_id: str, video_index: int, project: dict, tr: Callable) -> tuple[str, str]:
-    """返回 (预览音乐 URL, 音乐轨标签)。随机音乐无法得知原曲，只显示标签。"""
+def _music_preview(task_id: str, video_index: int, project: dict, tr: Callable) -> dict:
+    """返回音乐轨的预览数据；只有找得到音乐文件时音乐条才能拖动。"""
     music = project["music"]
+    duration = project["duration"]
+    region = {
+        "start": float(music.get("start", 0.0)),
+        "end": float(music.get("end", duration)),
+        "offset": float(music.get("offset", 0.0)),
+    }
+    preview = {"musicUrl": "", "musicLabel": "", "musicDraggable": False,
+               "musicLength": 0.0, "musicRegion": region}
     if music["mode"] == editor_service.MUSIC_NONE:
-        return "", ""
-    if music["mode"] == editor_service.MUSIC_SONG and music["song"]:
-        path = os.path.join(editor_service.utils.song_dir(), music["song"])
-        return _media_url(path, "audio/mpeg"), music["song"]
-    task_dir = editor_service.utils.task_dir(task_id)
-    for name in sorted(os.listdir(task_dir)):
-        if name.startswith((f"sonilo-bgm-{video_index}.", f"elevenlabs-bgm-{video_index}.")):
-            return _media_url(os.path.join(task_dir, name), "audio/mpeg"), tr("Editor Music Keep")
+        return preview
+    path = editor_service.music_file(task_id, video_index, music)
+    if path:
+        label = music["song"] if music["mode"] == editor_service.MUSIC_SONG else tr("Editor Music Keep")
+        preview.update(
+            musicUrl=_media_url(path, "audio/mpeg"),
+            musicLabel=label,
+            musicDraggable=True,
+            musicLength=editor_service.probe_duration(path),
+        )
+        return preview
     params = editor_service._load_task_params(task_id)["params"]
-    if not params.get("bgm_type") or float(params.get("bgm_volume") or 0) <= 0:
-        return "", ""
-    if params.get("bgm_type") == "preset" and params.get("bgm_file"):
-        path = os.path.join(editor_service.utils.song_dir(), os.path.basename(params["bgm_file"]))
-        if os.path.isfile(path):
-            return _media_url(path, "audio/mpeg"), os.path.basename(path)
-    return "", tr("Editor Music Keep")
+    if params.get("bgm_type") and float(params.get("bgm_volume") or 0) > 0:
+        # 旧任务的随机音乐：会保留，但原曲未知，无法预览或移动。
+        preview["musicLabel"] = tr("Editor Music Keep")
+    return preview
 
 
 def _component_data(task_id: str, state: dict, tr: Callable) -> dict:
@@ -179,7 +189,7 @@ def _component_data(task_id: str, state: dict, tr: Callable) -> dict:
             source = project["sources"][clip["source"]]
             thumb = editor_service.thumbnail_file(task_id, source, (clip["in"] + clip["out"]) / 2)
             thumbs[clip["id"]] = _media_url(thumb, "image/jpeg")
-    music_url, music_label = _music_preview(task_id, state["video_index"], project, tr)
+    music_preview = _music_preview(task_id, state["video_index"], project, tr)
     job = _job(task_id, state["video_index"])
     return {
         "rev": state["rev"],
@@ -187,8 +197,7 @@ def _component_data(task_id: str, state: dict, tr: Callable) -> dict:
         "aspect": str(editor_service._load_task_params(task_id)["params"].get("video_aspect") or "9:16"),
         "voiceUrl": _media_url(os.path.join(editor_service.utils.task_dir(task_id), "audio.mp3"), "audio/mpeg"),
         "voiceVolume": project["voice_volume"],
-        "musicUrl": music_url,
-        "musicLabel": music_label,
+        **music_preview,
         "musicVolume": project["music"]["volume"],
         "subtitlesEnabled": project["subtitles_enabled"],
         "sources": sources,
@@ -240,6 +249,7 @@ def _render_settings(task_id: str, state: dict, tr: Callable) -> None:
             key=f"editor_voice_volume_{key}",
         )
         project["music"] = {
+            **music,
             "mode": mode,
             "song": song if mode == editor_service.MUSIC_SONG else "",
             "volume": music_volume,
@@ -345,7 +355,11 @@ def render_editor(tr: Callable) -> None:
     if isinstance(action, dict) and action.get("nonce") != st.session_state.get("editor_last_nonce"):
         st.session_state["editor_last_nonce"] = action.get("nonce")
         edits = dict(action.get("edits") or {})
-        edits["music"] = state["project"]["music"]
+        region = edits.pop("music_region", None) or {}
+        edits["music"] = {
+            **state["project"]["music"],
+            **{name: region[name] for name in ("start", "end", "offset") if name in region},
+        }
         edits["voice_volume"] = state["project"]["voice_volume"]
         try:
             state["project"] = editor_service.validate_edits(state["project"], edits)

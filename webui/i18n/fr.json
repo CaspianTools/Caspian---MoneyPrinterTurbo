@@ -492,6 +492,8 @@
     "Editor Loading": "Préparation de l'éditeur…",
     "Editor Not Available": "Cette vidéo ne peut pas être modifiée : ses fichiers de travail (voix off ou piste de clips) sont manquants.",
     "Editor Video Select": "Vidéo",
-    "Editor Reset": "Annuler les modifications"
+    "Editor Reset": "Annuler les modifications",
+    "Editor Music Offset": "Le morceau commence à (s)",
+    "Editor Music Locked": "Le morceau d'origine de cette vidéo est inconnu. Choisissez un morceau ci-dessus pour déplacer ou rogner la musique."
   }
 }

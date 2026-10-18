@@ -10,6 +10,7 @@
 
 const MIN_CLIP = 0.3;
 const MIN_SUB = 0.2;
+const MIN_MUSIC = 0.5;
 const HISTORY_LIMIT = 100;
 
 const ICONS = {
@@ -68,6 +69,7 @@ class TimelineEditor {
     this.clips = clone(data.clips || []);
     this.subs = clone(data.subtitles || []);
     this.subsEnabled = data.subtitlesEnabled !== false;
+    this.musicRegion = clone(data.musicRegion || { start: 0, end: data.duration || 0, offset: 0 });
     this.sel = null; // {kind: "sub"|"clip", id}
     this.zoom = 40; // px per second
     this.time = 0;
@@ -207,7 +209,9 @@ class TimelineEditor {
 
   // ------------------------------------------------------------- model utils
   snapshot() {
-    return JSON.stringify({ clips: this.clips, subs: this.subs, subsEnabled: this.subsEnabled });
+    return JSON.stringify({
+      clips: this.clips, subs: this.subs, subsEnabled: this.subsEnabled, music: this.musicRegion,
+    });
   }
 
   commit(mutator) {
@@ -227,6 +231,7 @@ class TimelineEditor {
     this.clips = state.clips;
     this.subs = state.subs;
     this.subsEnabled = state.subsEnabled;
+    this.musicRegion = state.music;
     this.dirty = true;
     if (this.sel && !this.findSel()) this.sel = null;
     this.renderAll();
@@ -273,6 +278,7 @@ class TimelineEditor {
 
   findSel() {
     if (!this.sel) return null;
+    if (this.sel.kind === "music") return this.musicRegion;
     const list = this.sel.kind === "sub" ? this.subs : this.clips;
     return list.find((x) => x.id === this.sel.id) || null;
   }
@@ -283,10 +289,7 @@ class TimelineEditor {
     this.playing = true;
     this.voice.currentTime = this.time;
     this.voice.play().catch(() => {});
-    if (this.music.getAttribute("src")) {
-      this.music.currentTime = this.music.duration ? this.time % this.music.duration : 0;
-      this.music.play().catch(() => {});
-    }
+    this.syncMusic(true);
     this.syncVideo(true);
     this.playBtn.innerHTML = icon("pause", 22);
   }
@@ -303,7 +306,7 @@ class TimelineEditor {
     this.time = clamp(t, 0, this.duration());
     if (this.playing) {
       this.voice.currentTime = this.time;
-      if (this.music.duration) this.music.currentTime = this.time % this.music.duration;
+      this.syncMusic(true);
     }
     this.syncVideo(true);
     this.renderPlayhead();
@@ -332,11 +335,30 @@ class TimelineEditor {
     if (!this.playing && !this.video.paused) this.video.pause();
   }
 
+  // 音乐只在区间内播放：歌曲位置 = 起点偏移 + 进入区间后的时长（不够长则循环）。
+  syncMusic(force) {
+    if (!this.music.getAttribute("src")) return;
+    const r = this.musicRegion;
+    const inside = this.playing && this.time >= r.start && this.time < r.end;
+    if (!inside) {
+      if (!this.music.paused) this.music.pause();
+      return;
+    }
+    const length = this.data.musicLength || this.music.duration || 0;
+    let target = r.offset + (this.time - r.start);
+    if (length > 0) target %= length;
+    if (force || this.music.paused || Math.abs(this.music.currentTime - target) > 0.3) {
+      this.music.currentTime = target;
+    }
+    if (this.music.paused) this.music.play().catch(() => {});
+  }
+
   tick() {
     if (!this.root.isConnected) return;
     if (this.playing) {
       this.time = this.voice.currentTime;
       if (this.time >= this.duration()) this.pause();
+      this.syncMusic(false);
       this.syncVideo(false);
       this.renderPlayhead();
     }
@@ -394,9 +416,19 @@ class TimelineEditor {
         </div>`).join("");
 
     const musicOn = !!this.data.musicLabel;
+    const draggable = musicOn && !!this.data.musicDraggable;
+    const r = this.musicRegion;
+    const left = draggable ? r.start : 0;
+    const right = draggable ? r.end : duration;
+    const offsetNote = draggable && r.offset > 0.05 ? ` · ${fmt(r.offset)}` : "";
+    const musicTitle = musicOn && !draggable ? this.L.musicLocked : "";
     this.musicTrack.innerHTML = `
-      <div class="mpt-ed__music${musicOn ? "" : " mpt-ed__music--off"}" style="width:${this.px(duration)}px">
-        ${icon("music", 16)}<span>${esc(this.data.musicLabel || this.L.noMusic)}</span>
+      <div class="mpt-ed__music${musicOn ? "" : " mpt-ed__music--off"}${draggable ? " mpt-ed__music--drag" : ""}${sel.kind === "music" ? " mpt-ed__music--sel" : ""}"
+           ${draggable ? 'data-kind="music" data-id="music"' : ""} title="${esc(musicTitle)}"
+           style="left:${this.px(left)}px;width:${Math.max(6, this.px(right - left))}px">
+        ${draggable ? '<i class="mpt-ed__handle mpt-ed__handle--l" data-edge="l"></i>' : ""}
+        ${icon("music", 16)}<span>${esc(this.data.musicLabel || this.L.noMusic)}${esc(offsetNote)}</span>
+        ${draggable ? '<i class="mpt-ed__handle mpt-ed__handle--r" data-edge="r"></i>' : ""}
       </div>`;
 
     this.clipTrack.setAttribute("aria-label", this.L.clipsTrack || "");
@@ -442,7 +474,7 @@ class TimelineEditor {
     const q = (a) => this.root.querySelector(`[data-act="${a}"]`);
     q("undo").disabled = !this.undoStack.length;
     q("redo").disabled = !this.redoStack.length;
-    q("delete").disabled = !this.sel;
+    q("delete").disabled = !this.sel || this.sel.kind === "music";
     const busy = !!this.data.rendering;
     this.root.querySelectorAll('[data-act="save"],[data-act="render"]').forEach((b) => (b.disabled = busy));
   }
@@ -464,6 +496,14 @@ class TimelineEditor {
           <button class="mpt-ed__btn" data-act="split">${icon("split", 16)}${esc(L.split)}</button>
           <button class="mpt-ed__btn mpt-ed__btn--danger" data-act="delete">${icon("trash", 16)}${esc(L.delete)}</button>
         </div>`;
+    } else if (item && this.sel.kind === "music") {
+      body = `
+        <h3>${esc(this.data.musicLabel || "")}</h3>
+        <div class="mpt-ed__row">
+          <label class="mpt-ed__field"><span>${esc(L.start)}</span><input type="number" step="0.1" min="0" data-field="mstart" value="${item.start.toFixed(2)}"></label>
+          <label class="mpt-ed__field"><span>${esc(L.end)}</span><input type="number" step="0.1" min="0" data-field="mend" value="${item.end.toFixed(2)}"></label>
+        </div>
+        <label class="mpt-ed__field"><span>${esc(L.musicOffset)}</span><input type="number" step="0.1" min="0" data-field="moffset" value="${item.offset.toFixed(2)}"></label>`;
     } else if (item && this.sel.kind === "clip") {
       const source = this.data.sources[item.source] || {};
       const options = Object.entries(this.data.sources).map(([id, s]) =>
@@ -552,7 +592,13 @@ class TimelineEditor {
       return;
     }
     this.commit(() => {
-      if (field === "start") {
+      if (field === "mstart") {
+        item.start = clamp(+input.value || 0, 0, item.end - MIN_MUSIC);
+      } else if (field === "mend") {
+        item.end = clamp(+input.value || 0, item.start + MIN_MUSIC, this.duration());
+      } else if (field === "moffset") {
+        item.offset = Math.max(0, +input.value || 0);
+      } else if (field === "start") {
         item.start = clamp(+input.value || 0, 0, item.end - MIN_SUB);
       } else if (field === "end") {
         item.end = clamp(+input.value || 0, item.start + MIN_SUB, this.duration());
@@ -626,7 +672,7 @@ class TimelineEditor {
 
   removeSelected() {
     const item = this.findSel();
-    if (!item) return;
+    if (!item || this.sel.kind === "music") return;
     this.commit(() => {
       if (this.sel.kind === "sub") {
         this.subs = this.subs.filter((s) => s !== item);
@@ -663,6 +709,7 @@ class TimelineEditor {
       clips: this.clips.map(({ id, source, in: i, out, speed }) => ({ id, source, in: i, out, speed })),
       subtitles: this.subs.map(({ id, start, end, text }) => ({ id, start, end, text })),
       subtitles_enabled: this.subsEnabled,
+      music_region: { ...this.musicRegion },
     };
     this.dirty = false;
     this.setTriggerValue("action", { type, edits, nonce: Date.now() });
@@ -724,6 +771,17 @@ class TimelineEditor {
     const kind = block.dataset.kind;
     const id = block.dataset.id;
     const edge = e.target.dataset.edge || "";
+    if (kind === "music") {
+      this.sel = { kind: "music", id: "music" };
+      this.drag = {
+        kind: edge ? `music-${edge}` : "music-move", id, startT: t, startX: e.clientX,
+        before: this.snapshot(), orig: { ...this.musicRegion }, moved: false,
+      };
+      this.content.setPointerCapture(e.pointerId);
+      this.renderTracks();
+      this.renderSide();
+      return;
+    }
     const list = kind === "sub" ? this.subs : this.clips;
     const item = list.find((x) => x.id === id);
     if (!item) return;
@@ -746,6 +804,22 @@ class TimelineEditor {
     d.moved = true;
     const delta = t - d.startT;
     const o = d.orig;
+    if (d.kind.startsWith("music")) {
+      const r = this.musicRegion;
+      const length = o.end - o.start;
+      if (d.kind === "music-move") {
+        r.start = clamp(o.start + delta, 0, this.duration() - length);
+        r.end = r.start + length;
+      } else if (d.kind === "music-l") {
+        // 拖动左边缘相当于裁掉歌曲开头：起点后移多少，歌曲就从多后面开始。
+        r.start = clamp(o.start + delta, Math.max(0, o.start - o.offset), o.end - MIN_MUSIC);
+        r.offset = Math.max(0, o.offset + (r.start - o.start));
+      } else {
+        r.end = clamp(o.end + delta, o.start + MIN_MUSIC, this.duration());
+      }
+      this.renderTracks();
+      return;
+    }
     if (d.kind.startsWith("sub")) {
       const s = this.subs.find((x) => x.id === d.id);
       if (!s) return;

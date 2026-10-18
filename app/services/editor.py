@@ -35,6 +35,7 @@ PROJECT_VERSION = 1
 EDITOR_DIR_NAME = "editor"
 MIN_CLIP_SECONDS = 0.3
 MIN_SUBTITLE_SECONDS = 0.2
+MIN_MUSIC_SECONDS = 0.5
 MAX_SUBTITLE_CHARS = 500
 MAX_CLIPS = 400
 MAX_SUBTITLES = 2000
@@ -284,6 +285,10 @@ def create_project(task_id: str, video_index: int) -> dict[str, Any]:
             "mode": MUSIC_KEEP,
             "song": "",
             "volume": float(params.get("bgm_volume") if params.get("bgm_volume") is not None else 0.2),
+            # 音乐在时间线上的区间，以及从歌曲的第几秒开始播放。
+            "start": 0.0,
+            "end": round(probe_duration(_task_path(task_id, "audio.mp3")), 3),
+            "offset": 0.0,
         },
         "voice_volume": float(params.get("voice_volume") or 1.0),
     }
@@ -369,10 +374,22 @@ def validate_edits(project: dict[str, Any], edits: dict[str, Any]) -> dict[str, 
     song = os.path.basename(str(music.get("song") or ""))
     if mode == MUSIC_SONG and not (song and os.path.isfile(os.path.join(utils.song_dir(), song))):
         raise EditorError("the selected song does not exist")
+    previous = project.get("music") or {}
+    start = min(max(0.0, _number(music.get("start", previous.get("start", 0.0)), "music start")), duration)
+    end = min(
+        max(0.0, _number(music.get("end", previous.get("end", duration)), "music end")), duration
+    )
+    if end - start < MIN_MUSIC_SECONDS:
+        start, end = 0.0, duration
     result["music"] = {
         "mode": mode,
         "song": song if mode == MUSIC_SONG else "",
         "volume": min(2.0, max(0.0, _number(music.get("volume", 0.2), "music volume"))),
+        "start": round(start, 3),
+        "end": round(end, 3),
+        "offset": round(
+            max(0.0, _number(music.get("offset", previous.get("offset", 0.0)), "music offset")), 3
+        ),
     }
     result["voice_volume"] = min(
         2.0, max(0.0, _number(edits.get("voice_volume", project.get("voice_volume", 1.0)), "voice volume"))
@@ -474,6 +491,60 @@ def thumbnail_file(task_id: str, source: dict, at_seconds: float) -> str:
             "-vf", "scale=-2:96", "-q:v", "6", target,
         ])
     return target
+
+
+# ---------------------------------------------------------------------------
+# 背景音乐
+# ---------------------------------------------------------------------------
+
+
+def music_file(task_id: str, video_index: int, music: dict) -> str:
+    """
+    返回当前音乐设置对应的音频文件；无法确定时返回空字符串。
+
+    “保留原音乐”依次查找：配乐服务生成的文件、合成时记录的实际文件
+    （script.json 的 bgm_files）、任务指定的曲库歌曲。旧任务的随机音乐没有
+    记录，无法找回原曲，此时音乐条不能移动，渲染沿用原始随机规则。
+    """
+    if music.get("mode") == MUSIC_NONE:
+        return ""
+    if music.get("mode") == MUSIC_SONG:
+        path = os.path.join(utils.song_dir(), os.path.basename(music.get("song") or ""))
+        return path if os.path.isfile(path) else ""
+    task_dir = utils.task_dir(task_id)
+    for name in sorted(os.listdir(task_dir)):
+        if name.startswith((f"sonilo-bgm-{video_index}.", f"elevenlabs-bgm-{video_index}.")):
+            return os.path.join(task_dir, name)
+    try:
+        payload = _load_task_params(task_id)
+    except EditorError:
+        return ""
+    recorded = (payload.get("bgm_files") or {}).get(str(video_index))
+    if isinstance(recorded, str) and os.path.isfile(recorded):
+        return recorded
+    params = payload["params"]
+    if params.get("bgm_type") == "preset" and params.get("bgm_file"):
+        path = os.path.join(utils.song_dir(), os.path.basename(params["bgm_file"]))
+        if os.path.isfile(path):
+            return path
+    return ""
+
+
+def _place_music(source: str, music: dict, duration: float, output: str) -> None:
+    """生成与成片等长的音乐轨：区间前后静音，歌曲从 offset 开始，不够长则循环。"""
+    start = float(music.get("start", 0.0))
+    length = max(MIN_MUSIC_SECONDS, float(music.get("end", duration)) - start)
+    fade = min(1.0, length / 2)
+    audio_filter = (
+        f"atrim=start={float(music.get('offset', 0.0)):.3f}:duration={length:.3f},"
+        f"asetpts=PTS-STARTPTS,afade=t=out:st={length - fade:.3f}:d={fade:.3f},"
+        f"adelay={int(round(start * 1000))}:all=1,apad=whole_dur={duration:.3f}"
+    )
+    # 输出 WAV：VBR MP3 中的长段静音会让时长和定位估算失准。
+    _run_ffmpeg([
+        "-stream_loop", "-1", "-i", source, "-vn", "-af", audio_filter,
+        "-ac", "2", "-ar", "44100", "-t", f"{duration:.3f}", output,
+    ])
 
 
 # ---------------------------------------------------------------------------
@@ -588,23 +659,19 @@ def render_project(
 
         bgm_override = None
         music = project["music"]
+        source = music_file(task_id, video_index, music)
         if music["mode"] == MUSIC_NONE:
             params.bgm_volume = 0.0
             bgm_override = ""
-        elif music["mode"] == MUSIC_SONG:
-            params.bgm_type = "preset"
-            params.bgm_file = music["song"]
+        elif source:
+            # 已知音乐文件时按时间线区间预先排好整条音乐轨，渲染层不再循环。
+            progress(0.65, "placing music")
+            bgm_override = os.path.join(editor_dir(task_id), f"music-{video_index}-edited.wav")
+            _place_music(source, music, project["duration"], bgm_override)
+            params.bgm_type = params.bgm_type or "preset"
             params.bgm_volume = music["volume"]
         else:
             params.bgm_volume = music["volume"]
-            for prefix in ("sonilo", "elevenlabs"):
-                generated = [
-                    name for name in os.listdir(utils.task_dir(task_id))
-                    if name.startswith(f"{prefix}-bgm-{video_index}.")
-                ]
-                if generated:
-                    bgm_override = _task_path(task_id, generated[0])
-                    break
 
         progress(0.7, "adding voice, subtitles and music")
         output = edited_video_file(task_id, video_index)

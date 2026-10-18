@@ -98,7 +98,10 @@ def test_validate_edits_checks_song_exists(tmp_path, monkeypatch):
     ok = editor.validate_edits(
         project, {"clips": clips, "music": {"mode": "song", "song": "../songs/a.mp3", "volume": 0.5}}
     )
-    assert ok["music"] == {"mode": "song", "song": "a.mp3", "volume": 0.5}
+    assert ok["music"] == {
+        "mode": "song", "song": "a.mp3", "volume": 0.5,
+        "start": 0.0, "end": 12.0, "offset": 0.0,
+    }
     with pytest.raises(editor.EditorError):
         editor.validate_edits(
             project, {"clips": clips, "music": {"mode": "song", "song": "missing.mp3"}}
@@ -142,3 +145,35 @@ def test_save_and_load_project_round_trip(tmp_path, monkeypatch):
         assert json.load(file)["clips"] == project["clips"]
     loaded = editor.load_project("t", 1)
     assert loaded["clips"] == project["clips"]
+
+
+def test_validate_edits_clamps_music_region(tmp_path):
+    project = _project(tmp_path, duration=10.0)
+    clips = project["clips"]
+    moved = editor.validate_edits(
+        project,
+        {"clips": clips, "music": {"mode": "keep", "start": 2, "end": 99, "offset": -3}},
+    )
+    assert (moved["music"]["start"], moved["music"]["end"], moved["music"]["offset"]) == (2.0, 10.0, 0.0)
+    # 过短的区间回退为整条时间线。
+    tiny = editor.validate_edits(
+        project, {"clips": clips, "music": {"mode": "keep", "start": 4, "end": 4.1}}
+    )
+    assert (tiny["music"]["start"], tiny["music"]["end"]) == (0.0, 10.0)
+
+
+def test_music_file_prefers_recorded_original(tmp_path, monkeypatch):
+    monkeypatch.setattr(editor.utils, "task_dir", lambda task_id="": str(tmp_path))
+    songs = tmp_path / "songs"
+    songs.mkdir()
+    (songs / "preset.mp3").write_bytes(b"")
+    monkeypatch.setattr(editor.utils, "song_dir", lambda: str(songs))
+    recorded = tmp_path / "random-pick.mp3"
+    recorded.write_bytes(b"")
+    payload = {"params": {"bgm_type": "random"}, "bgm_files": {"1": str(recorded)}}
+    (tmp_path / "script.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    assert editor.music_file("t", 1, {"mode": "keep"}) == str(recorded)
+    assert editor.music_file("t", 2, {"mode": "keep"}) == ""
+    assert editor.music_file("t", 1, {"mode": "none"}) == ""
+    assert editor.music_file("t", 1, {"mode": "song", "song": "preset.mp3"}) == str(songs / "preset.mp3")

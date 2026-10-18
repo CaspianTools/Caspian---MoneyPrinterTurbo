@@ -441,6 +441,10 @@
     "Stage Footage": "Rechercher et télécharger les séquences",
     "Stage Render": "Rendre la vidéo",
     "Technical Log": "Journal technique",
-    "Generation Runs In Background": "S'exécute en arrière-plan : vous pouvez continuer à modifier ou fermer cette page."
+    "Generation Runs In Background": "S'exécute en arrière-plan : vous pouvez continuer à modifier ou fermer cette page.",
+    "New Video Heading": "Nouvelle vidéo",
+    "New Video Hint": "Quatre étapes. Les réglages par défaut conviennent : seul un sujet ou un script est requis.",
+    "Subtitle Preview Sample": "Vos sous-titres ressembleront à ceci",
+    "Subtitle Preview Label": "Aperçu des sous-titres"
   }
 }

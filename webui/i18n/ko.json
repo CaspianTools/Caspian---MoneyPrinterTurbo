@@ -441,6 +441,10 @@
     "Stage Footage": "영상 소스 검색 및 다운로드",
     "Stage Render": "영상 렌더링",
     "Technical Log": "기술 로그",
-    "Generation Runs In Background": "백그라운드에서 실행됩니다. 계속 편집하거나 이 페이지를 닫아도 됩니다."
+    "Generation Runs In Background": "백그라운드에서 실행됩니다. 계속 편집하거나 이 페이지를 닫아도 됩니다.",
+    "New Video Heading": "새 영상",
+    "New Video Hint": "4단계입니다. 기본값으로도 동작하며 주제나 스크립트만 입력하면 됩니다.",
+    "Subtitle Preview Sample": "자막은 이렇게 표시됩니다",
+    "Subtitle Preview Label": "자막 미리보기"
   }
 }

@@ -441,6 +441,10 @@
     "Stage Footage": "Mencari dan mengunduh footage",
     "Stage Render": "Merender video",
     "Technical Log": "Log teknis",
-    "Generation Runs In Background": "Berjalan di latar belakang — Anda bisa terus mengedit atau menutup halaman ini."
+    "Generation Runs In Background": "Berjalan di latar belakang — Anda bisa terus mengedit atau menutup halaman ini.",
+    "New Video Heading": "Video baru",
+    "New Video Hint": "Empat langkah. Pengaturan bawaan sudah berfungsi — cukup isi topik atau skrip.",
+    "Subtitle Preview Sample": "Subtitle Anda akan terlihat seperti ini",
+    "Subtitle Preview Label": "Pratinjau subtitle"
   }
 }

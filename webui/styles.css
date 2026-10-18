@@ -1,3 +1,6 @@
+/* 创作页字体；@import 必须位于样式表开头才会生效。 */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
 header[data-testid="stHeader"],
 div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
@@ -484,4 +487,233 @@ div[class*="st-key-task_row_"] button[kind="secondary"] p {
         width: auto !important;
         min-width: 1.75rem !important;
     }
+}
+
+/* ---------------------------------------------------------------------------
+   创作页视觉：IBM Plex Sans、浅暖灰底色、白色圆角卡片、步骤卡片式标签页、
+   右侧字幕预览与摘要。全部写在样式表里，不依赖 .streamlit 主题配置，
+   因此无论通过 webui.bat、webui.sh 还是 Docker 启动都一致。离线时字体
+   回退到系统无衬线字体。
+   --------------------------------------------------------------------------- */
+
+.stApp,
+div[data-testid="stAppViewContainer"] {
+    background: #F6F6F3 !important;
+}
+
+.stApp,
+.stApp button,
+.stApp input,
+.stApp textarea,
+.stApp [data-testid="stMarkdownContainer"],
+.stApp [data-baseweb="select"] {
+    font-family: "IBM Plex Sans", "Source Sans", system-ui, sans-serif !important;
+}
+
+.mpt-page-heading h2 {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em;
+}
+
+.mpt-page-heading p {
+    margin: 0.25rem 0 0.25rem !important;
+    color: #5D6068;
+    font-size: 0.9rem;
+}
+
+/* 设置卡片与摘要卡片：白底、浅边框、大圆角。 */
+div[class*="st-key-settings_card_"],
+div[class*="st-key-video_summary_card"] {
+    background: #FFFFFF !important;
+    border: 1px solid #E3E3DE !important;
+    border-radius: 16px !important;
+    padding: 1.5rem !important;
+}
+
+/* 标签页改为四张等宽步骤卡片，序号由 CSS 计数器绘制。 */
+div[class*="st-key-main_settings_tabs"] [role="tablist"] {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+    counter-reset: mpt-step;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+/* 选中标签页底部的红色指示条是标签内一个无 data-testid 的绝对定位 div；
+   步骤卡片用深色边框表示选中，隐藏该指示条和标签栏下方的分隔线。 */
+div[class*="st-key-main_settings_tabs"] [role="tab"] > div:not([data-testid]),
+div[class*="st-key-main_settings_tabs"] [role="tablist"]::before,
+div[class*="st-key-main_settings_tabs"] [role="tablist"]::after {
+    display: none !important;
+}
+
+div[class*="st-key-main_settings_tabs"] [role="tablist"] > :not([role="tab"]) {
+    grid-column: 1 / -1;
+}
+
+div[class*="st-key-main_settings_tabs"] [role="tab"] {
+    counter-increment: mpt-step;
+    display: flex !important;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 60px;
+    padding: 0.6rem 0.9rem !important;
+    margin: 0 !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E3E3DE !important;
+    border-radius: 12px !important;
+    color: #17181C !important;
+    min-width: 0;
+}
+
+div[class*="st-key-main_settings_tabs"] [role="tab"]::before {
+    content: counter(mpt-step);
+    flex: 0 0 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: #F1F1EC;
+    color: #5D6068;
+}
+
+div[class*="st-key-main_settings_tabs"] [role="tab"] > div[data-testid="stMarkdownContainer"] {
+    min-width: 0;
+    overflow: hidden;
+}
+
+@media (max-width: 640px) {
+    div[class*="st-key-main_settings_tabs"] [role="tablist"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+div[class*="st-key-main_settings_tabs"] [role="tab"] p {
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    color: #17181C !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+div[class*="st-key-main_settings_tabs"] [role="tab"]:hover {
+    border-color: #B9B9B2 !important;
+}
+
+div[class*="st-key-main_settings_tabs"] [role="tab"][aria-selected="true"] {
+    border: 2px solid #17181C !important;
+    padding: calc(0.6rem - 1px) calc(0.9rem - 1px) !important;
+}
+
+div[class*="st-key-main_settings_tabs"] [role="tab"][aria-selected="true"]::before {
+    background: #17181C;
+    color: #FFFFFF;
+}
+
+/* 卡片内已有标题；标签页内容区与步骤卡片之间留出间距。 */
+div[class*="st-key-main_settings_tabs"] [role="tabpanel"] {
+    padding-top: 0.75rem !important;
+}
+
+/* “下一步”是主要的前进动作，使用深色按钮。 */
+div[class*="st-key-settings_step_next_"] button {
+    background: #17181C !important;
+    border-color: #17181C !important;
+    color: #FFFFFF !important;
+}
+
+div[class*="st-key-settings_step_next_"] button:hover {
+    background: #33353B !important;
+}
+
+div[class*="st-key-settings_step_next_"] button p {
+    color: #FFFFFF !important;
+}
+
+/* 生成按钮：更高、更醒目。 */
+div[class*="st-key-generate_video_button"] button {
+    min-height: 56px !important;
+    border-radius: 12px !important;
+    background: #C8323A !important;
+    border-color: #C8323A !important;
+}
+
+div[class*="st-key-generate_video_button"] button:hover {
+    background: #A9272E !important;
+    border-color: #A9272E !important;
+}
+
+div[class*="st-key-generate_video_button"] button p {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+}
+
+/* 摘要卡片：标题、字幕预览帧与定义列表。 */
+.mpt-summary__title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.mpt-preview {
+    position: relative;
+    margin: 0 auto 1rem;
+    border-radius: 12px;
+    background: #2A2D33;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mpt-preview__hint {
+    color: #A9ADB5;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.mpt-preview__caption {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    text-align: center;
+    font-weight: 700;
+    line-height: 1.25;
+    paint-order: stroke fill;
+}
+
+.mpt-summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.5rem 1rem;
+    margin: 0 !important;
+}
+
+.mpt-summary dt,
+.mpt-summary dd {
+    font-size: 0.85rem !important;
+    line-height: 1.4 !important;
+    padding: 0 !important;
+}
+
+.mpt-summary dt {
+    color: #5D6068;
+    font-weight: 400;
+}
+
+.mpt-summary dd {
+    margin: 0;
+    font-weight: 500;
+    color: #17181C;
+    overflow-wrap: anywhere;
 }

@@ -621,6 +621,10 @@
     "Stage Footage": "搜索并下载素材",
     "Stage Render": "合成视频",
     "Technical Log": "技术日志",
-    "Generation Runs In Background": "任务在后台运行，可以继续编辑或关闭此页面。"
+    "Generation Runs In Background": "任务在后台运行，可以继续编辑或关闭此页面。",
+    "New Video Heading": "新建视频",
+    "New Video Hint": "共四步。默认设置即可使用，只需填写主题或文案。",
+    "Subtitle Preview Sample": "字幕将显示成这样",
+    "Subtitle Preview Label": "字幕预览"
   }
 }

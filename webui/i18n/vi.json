@@ -441,6 +441,10 @@
     "Stage Footage": "Tìm và tải cảnh quay",
     "Stage Render": "Kết xuất video",
     "Technical Log": "Nhật ký kỹ thuật",
-    "Generation Runs In Background": "Chạy trong nền — bạn có thể tiếp tục chỉnh sửa hoặc đóng trang này."
+    "Generation Runs In Background": "Chạy trong nền — bạn có thể tiếp tục chỉnh sửa hoặc đóng trang này.",
+    "New Video Heading": "Video mới",
+    "New Video Hint": "Bốn bước. Cài đặt mặc định đã dùng được — chỉ cần chủ đề hoặc kịch bản.",
+    "Subtitle Preview Sample": "Phụ đề của bạn sẽ trông như thế này",
+    "Subtitle Preview Label": "Xem trước phụ đề"
   }
 }

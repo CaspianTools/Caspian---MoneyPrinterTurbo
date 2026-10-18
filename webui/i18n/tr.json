@@ -441,6 +441,10 @@
     "Stage Footage": "Görüntüler aranıyor ve indiriliyor",
     "Stage Render": "Video oluşturuluyor",
     "Technical Log": "Teknik günlük",
-    "Generation Runs In Background": "Arka planda çalışır; düzenlemeye devam edebilir veya bu sayfayı kapatabilirsiniz."
+    "Generation Runs In Background": "Arka planda çalışır; düzenlemeye devam edebilir veya bu sayfayı kapatabilirsiniz.",
+    "New Video Heading": "Yeni video",
+    "New Video Hint": "Dört adım. Varsayılanlar çalışır — yalnızca bir konu veya senaryo gerekir.",
+    "Subtitle Preview Sample": "Altyazılarınız böyle görünecek",
+    "Subtitle Preview Label": "Altyazı önizlemesi"
   }
 }

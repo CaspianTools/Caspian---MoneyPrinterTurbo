@@ -441,6 +441,10 @@
     "Stage Footage": "Buscar e baixar imagens",
     "Stage Render": "Renderizar vídeo",
     "Technical Log": "Registro técnico",
-    "Generation Runs In Background": "Executa em segundo plano — você pode continuar editando ou fechar esta página."
+    "Generation Runs In Background": "Executa em segundo plano — você pode continuar editando ou fechar esta página.",
+    "New Video Heading": "Novo vídeo",
+    "New Video Hint": "Quatro etapas. Os padrões funcionam — só é preciso um tema ou um roteiro.",
+    "Subtitle Preview Sample": "Suas legendas ficarão assim",
+    "Subtitle Preview Label": "Prévia das legendas"
   }
 }

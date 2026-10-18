@@ -977,6 +977,7 @@ def combine_videos(
     source_groups: dict[str, str] | None = None,
     used_video_paths: List[str] | None = None,
     progress_callback: Callable[[float], None] | None = None,
+    segment_log: List[dict] | None = None,
 ) -> str:
     # Pydantic leaves this optional default as the string "random" unless
     # explicitly provided. Normalize it once for all downstream enum access.
@@ -1170,6 +1171,11 @@ def combine_videos(
                 height=clip_h,
                 source_file_path=subclipped_item.source_file_path,
             )
+            # 记录片段在源素材中的入点/出点，供时间线编辑器还原片段。
+            processed_clip.start_time = subclipped_item.start_time
+            processed_clip.end_time = (
+                subclipped_item.start_time + clip_duration_saved * normalized_clip_speed
+            )
             clip_file = None
             return processed_clip
         except Exception as exc:
@@ -1275,6 +1281,20 @@ def combine_videos(
                 if elapsed >= audio_duration:
                     break
                 used_video_paths.append(clip.source_file_path)
+                elapsed += clip.duration
+        if segment_log is not None:
+            # 输出中实际出现的片段及其源素材区间；最后一段按旁白时长截短。
+            elapsed = 0.0
+            for clip in processed_clips:
+                if elapsed >= audio_duration or clip.start_time is None:
+                    break
+                visible = min(clip.duration, audio_duration - elapsed)
+                segment_log.append({
+                    "source": os.path.abspath(clip.source_file_path),
+                    "in": round(clip.start_time, 3),
+                    "out": round(clip.start_time + visible * normalized_clip_speed, 3),
+                    "speed": normalized_clip_speed,
+                })
                 elapsed += clip.duration
     finally:
         # FFmpeg failures and timeouts must not strand one encoded MP4 per clip.

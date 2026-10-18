@@ -63,6 +63,33 @@ _JS_LABEL_KEYS = {
     "noMusic": "Editor Music None",
     "musicOffset": "Editor Music Offset",
     "musicLocked": "Editor Music Locked",
+    "musicKeep": "Editor Music Keep",
+    "musicSong": "Editor Music Song",
+    "musicVolume": "Editor Music Volume",
+    "voiceVolume": "Editor Voice Volume",
+    "tools": "Editor Tools",
+    "tabMedia": "Editor Tab Media",
+    "tabStock": "Editor Tab Stock",
+    "tabAudio": "Editor Tab Audio",
+    "tabText": "Editor Tab Text",
+    "mediaHint": "Editor Media Hint",
+    "stockSearch": "Editor Stock Search",
+    "stockButton": "Editor Stock Button",
+    "stockSearching": "Editor Stock Searching",
+    "stockDownloading": "Editor Stock Downloading",
+    "stockEmpty": "Editor Stock Empty",
+    "stockNoKey": "Editor Stock No Key",
+    "stockHint": "Editor Stock Hint",
+    "stockError": "Editor Stock Error",
+    "useStock": "Editor Stock Use",
+    "replaceStock": "Editor Replace Stock",
+    "moveLeft": "Editor Move Left",
+    "moveRight": "Editor Move Right",
+    "resetMusic": "Editor Reset Music",
+    "removeMusic": "Editor Remove Music",
+    "addSubtitleHere": "Editor Add Subtitle Here",
+    "playFromHere": "Editor Play From Here",
+    "editText": "Editor Edit Text",
 }
 
 
@@ -172,6 +199,7 @@ def _music_preview(task_id: str, video_index: int, project: dict, tr: Callable) 
 def _component_data(task_id: str, state: dict, tr: Callable) -> dict:
     project = state["project"]
     sources = {}
+    terms, keyword_by_file = editor_service.task_keywords(task_id)
     with st.spinner(tr("Editor Loading")):
         for source_id, source in project["sources"].items():
             proxy = editor_service.preview_file(task_id, source)
@@ -183,6 +211,8 @@ def _component_data(task_id: str, state: dict, tr: Callable) -> dict:
                     proxy, "video/webm" if proxy.endswith(".webm") else "video/mp4"
                 ),
                 "thumb": _media_url(thumb, "image/jpeg"),
+                # 片段原来的搜索关键词，单击片段时用来预填在线素材搜索。
+                "keyword": keyword_by_file.get(os.path.basename(source["path"]), ""),
             }
         thumbs = {}
         for clip in project["clips"][:200]:
@@ -198,7 +228,14 @@ def _component_data(task_id: str, state: dict, tr: Callable) -> dict:
         "voiceUrl": _media_url(os.path.join(editor_service.utils.task_dir(task_id), "audio.mp3"), "audio/mpeg"),
         "voiceVolume": project["voice_volume"],
         **music_preview,
-        "musicVolume": project["music"]["volume"],
+        "music": project["music"],
+        "songs": editor_service.list_songs(),
+        "stock": {
+            **st.session_state.get("editor_stock", {}),
+            "providers": editor_service.stock_providers(),
+            "terms": terms,
+        },
+        "stockPick": st.session_state.get("editor_stock_pick"),
         "subtitlesEnabled": project["subtitles_enabled"],
         "sources": sources,
         "thumbs": thumbs,
@@ -209,68 +246,79 @@ def _component_data(task_id: str, state: dict, tr: Callable) -> dict:
     }
 
 
-def _render_settings(task_id: str, state: dict, tr: Callable) -> None:
-    """音乐、音量和片段上传；修改立即写入会话中的工程，渲染时一起提交。"""
-    project = state["project"]
-    music = project["music"]
-    songs = editor_service.list_songs()
-    modes = [editor_service.MUSIC_KEEP, editor_service.MUSIC_NONE]
-    if songs:
-        modes.append(editor_service.MUSIC_SONG)
-    mode_labels = {
-        editor_service.MUSIC_KEEP: tr("Editor Music Keep"),
-        editor_service.MUSIC_NONE: tr("Editor Music None"),
-        editor_service.MUSIC_SONG: tr("Editor Music Song"),
-    }
+def _render_upload(task_id: str, state: dict, tr: Callable) -> None:
+    """导入本地片段到素材库；文件较大，留在 Streamlit 原生上传控件中处理。"""
     key = f"{task_id}_{state['video_index']}_{state['rev']}"
-    with st.container(border=True, key="editor_settings_card"):
-        columns = st.columns([1.2, 1.2, 1, 1])
-        mode = columns[0].selectbox(
-            tr("Editor Music"),
-            modes,
-            index=modes.index(music["mode"]) if music["mode"] in modes else 0,
-            format_func=lambda value: mode_labels[value],
-            key=f"editor_music_mode_{key}",
-        )
-        song = music["song"]
-        if mode == editor_service.MUSIC_SONG:
-            song = columns[1].selectbox(
-                tr("Editor Music Song"),
-                songs,
-                index=songs.index(song) if song in songs else 0,
-                key=f"editor_music_song_{key}",
-            )
-        music_volume = columns[2].slider(
-            tr("Editor Music Volume"), 0.0, 1.0, float(min(1.0, music["volume"])), 0.05,
-            key=f"editor_music_volume_{key}",
-        )
-        voice_volume = columns[3].slider(
-            tr("Editor Voice Volume"), 0.0, 2.0, float(project["voice_volume"]), 0.05,
-            key=f"editor_voice_volume_{key}",
-        )
-        project["music"] = {
-            **music,
-            "mode": mode,
-            "song": song if mode == editor_service.MUSIC_SONG else "",
-            "volume": music_volume,
-        }
-        project["voice_volume"] = voice_volume
-
+    with st.expander(tr("Editor Upload Clip"), icon=":material/upload:"):
         upload = st.file_uploader(
             tr("Editor Upload Clip"),
             type=["mp4", "mov", "m4v", "webm", "mkv"],
             key=f"editor_upload_{key}",
+            label_visibility="collapsed",
         )
-        if upload is not None:
-            marker = f"{upload.name}:{upload.size}"
-            if st.session_state.get("editor_last_upload") != marker:
-                try:
-                    state["project"] = editor_service.add_source(
-                        task_id, state["video_index"], project, upload.name, upload.getvalue()
-                    )
-                    st.session_state["editor_last_upload"] = marker
-                except editor_service.EditorError as exc:
-                    st.error(str(exc))
+    if upload is not None:
+        marker = f"{upload.name}:{upload.size}"
+        if st.session_state.get("editor_last_upload") != marker:
+            try:
+                state["project"] = editor_service.add_source(
+                    task_id, state["video_index"], state["project"], upload.name, upload.getvalue()
+                )
+                st.session_state["editor_last_upload"] = marker
+                st.rerun()
+            except editor_service.EditorError as exc:
+                st.error(str(exc))
+
+
+def _handle_action(task_id: str, video_index: int, state: dict, action: dict, tr: Callable) -> bool:
+    """处理时间线组件发来的请求；返回 True 表示需要立即刷新页面。"""
+    kind = action.get("type")
+    edits = dict(action.get("edits") or {})
+    nonce = str(action.get("nonce") or "")
+    if kind == "stock_search":
+        stock = {"query": str(action.get("query") or "")[:100], "nonce": nonce, "results": [], "error": ""}
+        try:
+            with st.spinner(tr("Editor Stock Searching")):
+                stock["results"] = editor_service.search_stock(
+                    task_id, stock["query"], str(action.get("provider") or "")
+                )
+        except Exception as exc:
+            logger.warning(f"editor stock search failed: {exc}")
+            stock["error"] = str(exc)[:200]
+        st.session_state["editor_stock"] = stock
+        return True
+    if kind == "stock_pick":
+        try:
+            with st.spinner(tr("Editor Stock Downloading")):
+                project, source_id = editor_service.add_stock_source(
+                    task_id, state["project"], str(action.get("result") or "")
+                )
+            state["project"] = project
+            st.session_state["editor_stock_pick"] = {
+                "nonce": nonce, "source": source_id, "clipId": action.get("clip"),
+            }
+        except Exception as exc:
+            logger.warning(f"editor stock download failed: {exc}")
+            stock = dict(st.session_state.get("editor_stock", {}))
+            stock.update(error=str(exc)[:200], nonce=nonce)
+            st.session_state["editor_stock"] = stock
+        return True
+    try:
+        merged = editor_service.validate_edits(state["project"], edits)
+    except editor_service.EditorError as exc:
+        st.error(str(exc))
+        return False
+    if kind == "music":
+        # 只更新会话中的音乐设置，刷新后预览新的音乐文件；不写盘。
+        state["project"]["music"] = merged["music"]
+        state["project"]["voice_volume"] = merged["voice_volume"]
+        return True
+    state["project"] = merged
+    editor_service.save_project(task_id, video_index, merged)
+    if kind == "render":
+        _start_render(task_id, video_index, edits)
+    else:
+        st.toast(tr("Editor Saved"))
+    return False
 
 
 @st.fragment(run_every="1s")
@@ -340,7 +388,6 @@ def render_editor(tr: Callable) -> None:
 
     try:
         state = _project_state(task_id, video_index)
-        _render_settings(task_id, state, tr)
         data = _component_data(task_id, state, tr)
     except editor_service.EditorError as exc:
         st.error(str(exc))
@@ -354,21 +401,8 @@ def render_editor(tr: Callable) -> None:
     action = getattr(result, "action", None)
     if isinstance(action, dict) and action.get("nonce") != st.session_state.get("editor_last_nonce"):
         st.session_state["editor_last_nonce"] = action.get("nonce")
-        edits = dict(action.get("edits") or {})
-        region = edits.pop("music_region", None) or {}
-        edits["music"] = {
-            **state["project"]["music"],
-            **{name: region[name] for name in ("start", "end", "offset") if name in region},
-        }
-        edits["voice_volume"] = state["project"]["voice_volume"]
-        try:
-            state["project"] = editor_service.validate_edits(state["project"], edits)
-            editor_service.save_project(task_id, video_index, state["project"])
-            if action.get("type") == "render":
-                _start_render(task_id, video_index, edits)
-            else:
-                st.toast(tr("Editor Saved"))
-        except editor_service.EditorError as exc:
-            st.error(str(exc))
+        if _handle_action(task_id, video_index, state, action, tr):
+            st.rerun()
 
+    _render_upload(task_id, state, tr)
     _render_job_status(task_id, video_index, tr)

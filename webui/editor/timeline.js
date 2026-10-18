@@ -26,6 +26,10 @@ const ICONS = {
   zoomOut: '<circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-4-4"/>',
   zoomIn: '<circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-4-4"/>',
   music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  media: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>',
+  stock: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  audio: '<path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/>',
+  check: '<path d="M5 12l5 5 9-10"/>',
 };
 
 function icon(name, size = 20) {
@@ -70,7 +74,17 @@ class TimelineEditor {
     this.subs = clone(data.subtitles || []);
     this.subsEnabled = data.subtitlesEnabled !== false;
     this.musicRegion = clone(data.musicRegion || { start: 0, end: data.duration || 0, offset: 0 });
-    this.sel = null; // {kind: "sub"|"clip", id}
+    const music = data.music || {};
+    this.musicState = { mode: music.mode || "keep", song: music.song || "", volume: music.volume ?? 0.2 };
+    this.voiceVolume = data.voiceVolume ?? 1;
+    // 左侧面板（素材 / 在线素材 / 音频 / 文字）与在线搜索的界面状态。
+    this.tab = "media";
+    const stock = data.stock || {};
+    this.stockProvider = (stock.providers || [])[0] || "";
+    this.stockQuery = stock.query || "";
+    this.stockWaiting = null;
+    this.lastPick = data.stockPick ? data.stockPick.nonce : null;
+    this.sel = null; // {kind: "sub"|"clip"|"music", id}
     this.zoom = 40; // px per second
     this.time = 0;
     this.playing = false;
@@ -89,11 +103,19 @@ class TimelineEditor {
     this.data = data;
     this.L = data.labels || this.L;
     if ((data.musicUrl || "") !== this.musicUrl) this.setMusicSource(data.musicUrl);
-    this.voice.volume = clamp(data.voiceVolume ?? 1, 0, 1);
-    this.music.volume = clamp(data.musicVolume ?? 0.2, 0, 1);
+    const stock = data.stock || {};
+    if (this.stockWaiting && stock.nonce === this.stockWaiting) this.stockWaiting = null;
+    const pick = data.stockPick;
+    if (pick && pick.nonce !== this.lastPick) {
+      // 服务端下载完在线素材后，把它放进选中片段的位置（没有选中则追加到末尾）。
+      this.lastPick = pick.nonce;
+      this.stockWaiting = null;
+      this.useSource(pick.source, pick.clipId);
+      return;
+    }
     this.renderSide();
     this.renderTracks();
-    this.renderLibrary();
+    this.renderDrawer();
     this.renderButtons();
   }
 
@@ -111,6 +133,11 @@ class TimelineEditor {
     this.root.innerHTML = `
       <div class="mpt-ed" tabindex="0">
         <div class="mpt-ed__top">
+          <nav class="mpt-ed__rail" aria-label="${esc(L.tools)}">
+            ${[["media", "media", L.tabMedia], ["stock", "stock", L.tabStock], ["audio", "audio", L.tabAudio], ["text", "text", L.tabText]]
+              .map(([tab, ic, label]) => `<button class="mpt-ed__railbtn" data-tab="${tab}">${icon(ic, 22)}<span>${esc(label)}</span></button>`).join("")}
+          </nav>
+          <div class="mpt-ed__drawer"></div>
           <div class="mpt-ed__stage">
             <div class="mpt-ed__frame" style="width:${w}px;height:${h}px">
               <video muted playsinline preload="auto"></video>
@@ -150,9 +177,8 @@ class TimelineEditor {
               <div class="mpt-ed__playhead"></div>
             </div>
           </div>
-          <p class="mpt-ed__libtitle">${esc(L.library)}</p>
-          <div class="mpt-ed__library"></div>
         </div>
+        <div class="mpt-ed__menu" role="menu" hidden></div>
       </div>`;
     const q = (s) => this.root.querySelector(s);
     this.el = q(".mpt-ed");
@@ -168,20 +194,27 @@ class TimelineEditor {
     this.playhead = q(".mpt-ed__playhead");
     this.timeLabel = q(".mpt-ed__time");
     this.zoomInput = q(".mpt-ed__zoom");
-    this.library = q(".mpt-ed__library");
+    this.drawer = q(".mpt-ed__drawer");
+    this.menu = q(".mpt-ed__menu");
     this.playBtn = q('[data-act="play"]');
     this.zoomInput.value = this.zoom;
 
     this.voice = new Audio(this.data.voiceUrl || "");
     this.voice.preload = "auto";
-    this.voice.volume = clamp(this.data.voiceVolume ?? 1, 0, 1);
+    this.voice.volume = clamp(this.voiceVolume, 0, 1);
     this.voice.addEventListener("ended", () => this.pause());
     this.music = new Audio();
     this.music.loop = true;
-    this.music.volume = clamp(this.data.musicVolume ?? 0.2, 0, 1);
+    this.music.volume = clamp(this.musicState.volume, 0, 1);
     this.setMusicSource(this.data.musicUrl);
 
     this.el.addEventListener("click", (e) => this.onClick(e));
+    this.el.addEventListener("contextmenu", (e) => this.onContextMenu(e));
+    this.el.addEventListener("input", (e) => this.onDrawerInput(e));
+    this.el.addEventListener("pointerdown", (e) => {
+      if (!this.menu.hidden && !e.target.closest(".mpt-ed__menu")) this.closeMenu();
+    }, true);
+    this.scroller.addEventListener("scroll", () => this.closeMenu());
     this.el.addEventListener("keydown", (e) => this.onKey(e));
     this.zoomInput.addEventListener("input", () => this.setZoom(+this.zoomInput.value));
     this.content.addEventListener("pointerdown", (e) => this.onPointerDown(e));
@@ -372,7 +405,7 @@ class TimelineEditor {
   renderAll() {
     this.renderTracks();
     this.renderSide();
-    this.renderLibrary();
+    this.renderDrawer();
     this.renderButtons();
   }
 
@@ -475,6 +508,10 @@ class TimelineEditor {
     q("undo").disabled = !this.undoStack.length;
     q("redo").disabled = !this.redoStack.length;
     q("delete").disabled = !this.sel || this.sel.kind === "music";
+    this.root.querySelectorAll(".mpt-ed__railbtn").forEach((b) => {
+      b.classList.toggle("mpt-ed__railbtn--on", b.dataset.tab === this.tab);
+      b.setAttribute("aria-pressed", b.dataset.tab === this.tab ? "true" : "false");
+    });
     const busy = !!this.data.rendering;
     this.root.querySelectorAll('[data-act="save"],[data-act="render"]').forEach((b) => (b.disabled = busy));
   }
@@ -520,6 +557,7 @@ class TimelineEditor {
           <label class="mpt-ed__field"><span>${esc(L.speed)}</span><select data-field="speed">${speeds}</select></label>
           <label class="mpt-ed__field"><span>${esc(L.replace)}</span><select data-field="source">${options}</select></label>
         </div>
+        <button class="mpt-ed__btn mpt-ed__btn--dark" data-act="stockfor">${icon("stock", 16)}${esc(L.replaceStock)}</button>
         <div class="mpt-ed__actions" style="margin-top:0">
           <button class="mpt-ed__btn" data-act="split">${icon("split", 16)}${esc(L.split)}</button>
           <button class="mpt-ed__btn" data-act="duplicate">${esc(L.duplicate)}</button>
@@ -531,10 +569,6 @@ class TimelineEditor {
     const status = this.data.rendering ? L.rendering : this.dirty ? L.unsaved : "";
     this.side.innerHTML = `
       ${body}
-      <label class="mpt-ed__field" style="flex-direction:row;align-items:center;gap:8px">
-        <input type="checkbox" data-field="subsEnabled" style="width:18px;min-height:18px;accent-color:#17181C"${this.subsEnabled ? " checked" : ""}>
-        <span style="font-weight:500">${esc(L.showSubtitles)}</span>
-      </label>
       <div class="mpt-ed__actions">
         <button class="mpt-ed__btn" data-act="save">${esc(L.save)}</button>
         <button class="mpt-ed__btn mpt-ed__btn--accent" data-act="render">${esc(L.render)}</button>
@@ -550,14 +584,254 @@ class TimelineEditor {
     this.renderButtons();
   }
 
-  renderLibrary() {
+  renderDrawer() {
     const L = this.L;
-    this.library.innerHTML = Object.entries(this.data.sources || {}).map(([id, s]) => `
-      <div class="mpt-ed__source">
-        ${s.thumb ? `<img src="${s.thumb}" alt="">` : `<img alt="">`}
-        <div><b title="${esc(s.label)}">${esc(s.label)}</b>
-          <button class="mpt-ed__btn" data-act="append" data-source="${esc(id)}">${esc(L.add)}</button></div>
-      </div>`).join("");
+    const tab = this.tab;
+    let html = "";
+    if (tab === "media") {
+      const clip = this.sel && this.sel.kind === "clip" ? this.findSel() : null;
+      html = `<h3>${esc(L.library)}</h3><p class="mpt-ed__hint">${esc(L.mediaHint)}</p>
+        <div class="mpt-ed__grid">${Object.entries(this.data.sources || {}).map(([id, s]) => `
+          <div class="mpt-ed__card">
+            ${s.thumb ? `<img src="${s.thumb}" alt="">` : '<span class="mpt-ed__noimg"></span>'}
+            <span class="mpt-ed__badge">${fmt(s.duration)}</span>
+            <div class="mpt-ed__cardrow"><b title="${esc(s.label)}">${esc(s.label)}</b></div>
+            <div class="mpt-ed__cardrow">
+              <button class="mpt-ed__btn mpt-ed__btn--small" data-act="append" data-source="${esc(id)}">${esc(L.add)}</button>
+              ${clip ? `<button class="mpt-ed__btn mpt-ed__btn--small mpt-ed__btn--dark" data-act="usesource" data-source="${esc(id)}">${esc(L.useStock)}</button>` : ""}
+            </div>
+          </div>`).join("")}</div>`;
+    } else if (tab === "stock") {
+      const stock = this.data.stock || {};
+      const providers = stock.providers || [];
+      if (!providers.length) {
+        html = `<h3>${esc(L.tabStock)}</h3><p class="mpt-ed__hint">${esc(L.stockNoKey)}</p>`;
+      } else {
+        const busy = this.stockWaiting ? (this.stockWaiting.startsWith("p") ? L.stockDownloading : L.stockSearching) : "";
+        const results = stock.results || [];
+        const chips = [...new Set([this.clipKeyword(), ...(stock.terms || [])].filter(Boolean))].slice(0, 12);
+        html = `<h3>${esc(L.tabStock)}</h3>
+          <form class="mpt-ed__search" data-form="stock">
+            ${providers.length > 1 ? `<select data-input="provider">${providers.map((p) => `<option value="${esc(p)}"${p === this.stockProvider ? " selected" : ""}>${esc(p)}</option>`).join("")}</select>` : ""}
+            <input type="search" data-input="query" placeholder="${esc(L.stockSearch)}" aria-label="${esc(L.stockSearch)}" value="${esc(this.stockQuery)}">
+            <button class="mpt-ed__btn mpt-ed__btn--dark" type="submit">${icon("stock", 16)}${esc(L.stockButton)}</button>
+          </form>
+          ${chips.length ? `<div class="mpt-ed__chips">${chips.map((c) => `<button class="mpt-ed__chip" data-act="stockchip" data-query="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
+          <p class="mpt-ed__hint">${esc(busy || (stock.error ? L.stockError.replace("{error}", stock.error) : L.stockHint))}</p>
+          ${!busy && stock.query && !results.length && !stock.error ? `<p class="mpt-ed__hint">${esc(L.stockEmpty)}</p>` : ""}
+          <div class="mpt-ed__grid">${results.map((r) => `
+            <button class="mpt-ed__card mpt-ed__card--pick" data-act="stockpick" data-result="${esc(r.id)}" ${busy ? "disabled" : ""}
+                    title="${esc(r.creator ? `${r.provider} · ${r.creator}` : r.provider)}">
+              ${r.thumb ? `<img src="${esc(r.thumb)}" alt="" loading="lazy">` : '<span class="mpt-ed__noimg"></span>'}
+              <span class="mpt-ed__badge">${fmt(r.duration)}</span>
+              <span class="mpt-ed__cardrow"><b>${esc(r.creator || r.provider)}</b><span class="mpt-ed__use">${esc(L.useStock)}</span></span>
+            </button>`).join("")}</div>`;
+      }
+    } else if (tab === "audio") {
+      const m = this.musicState;
+      const songs = this.data.songs || [];
+      const option = (mode, song, label) => {
+        const on = m.mode === mode && (mode !== "song" || m.song === song);
+        return `<button class="mpt-ed__option${on ? " mpt-ed__option--on" : ""}" data-act="music" data-mode="${mode}" data-song="${esc(song)}">
+          ${on ? icon("check", 16) : icon("music", 16)}<span>${esc(label)}</span></button>`;
+      };
+      html = `<h3>${esc(L.tabAudio)}</h3>
+        <label class="mpt-ed__field"><span>${esc(L.musicVolume)} · ${Math.round(m.volume * 100)}%</span>
+          <input type="range" min="0" max="1" step="0.05" data-input="musicVolume" value="${m.volume}"></label>
+        <label class="mpt-ed__field"><span>${esc(L.voiceVolume)} · ${Math.round(this.voiceVolume * 100)}%</span>
+          <input type="range" min="0" max="2" step="0.05" data-input="voiceVolume" value="${this.voiceVolume}"></label>
+        <div class="mpt-ed__options">
+          ${option("keep", "", L.musicKeep)}
+          ${option("none", "", L.noMusic)}
+        </div>
+        <p class="mpt-ed__libtitle">${esc(L.musicSong)}</p>
+        <div class="mpt-ed__options mpt-ed__options--scroll">${songs.map((song) => option("song", song, song)).join("")}</div>`;
+    } else {
+      html = `<h3>${esc(L.tabText)}</h3>
+        <label class="mpt-ed__field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" data-field="subsEnabled" style="width:18px;min-height:18px;accent-color:#17181C"${this.subsEnabled ? " checked" : ""}>
+          <span style="font-weight:500">${esc(L.showSubtitles)}</span>
+        </label>
+        <button class="mpt-ed__btn mpt-ed__btn--dark" data-act="addsub">${icon("text", 16)}${esc(L.addSubtitle)}</button>
+        <div class="mpt-ed__options mpt-ed__options--scroll">${this.subs.map((t) => `
+          <button class="mpt-ed__option${this.sel && this.sel.kind === "sub" && this.sel.id === t.id ? " mpt-ed__option--on" : ""}" data-act="selectsub" data-id="${esc(t.id)}">
+            <span class="mpt-ed__time">${fmt(t.start)}</span><span>${esc(t.text)}</span></button>`).join("")}</div>`;
+    }
+    this.drawer.innerHTML = html;
+    this.drawer.querySelectorAll('[data-field="subsEnabled"]').forEach((input) =>
+      input.addEventListener("change", () => this.onField(input)));
+    const form = this.drawer.querySelector('[data-form="stock"]');
+    if (form) {
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        this.stockSearch(form.querySelector('[data-input="query"]').value);
+      });
+    }
+  }
+
+  clipKeyword() {
+    const clip = this.sel && this.sel.kind === "clip" ? this.findSel() : null;
+    const source = clip ? this.data.sources[clip.source] : null;
+    return source ? source.keyword || "" : "";
+  }
+
+  openTab(tab) {
+    this.tab = tab;
+    this.renderDrawer();
+    this.renderButtons();
+  }
+
+  // ------------------------------------------------------- server round trips
+  send(type, extra = {}) {
+    // 前缀区分请求类型：q 搜索、p 下载，界面据此显示“搜索中/下载中”。
+    const prefix = { stock_search: "q", stock_pick: "p" }[type] || "a";
+    const nonce = `${prefix}${Date.now()}`;
+    this.setTriggerValue("action", { type, nonce, edits: this.collectEdits(), ...extra });
+    return nonce;
+  }
+
+  stockSearch(query) {
+    query = String(query || "").trim();
+    if (!query) return;
+    this.stockQuery = query;
+    const provider = this.drawer.querySelector('[data-input="provider"]');
+    if (provider) this.stockProvider = provider.value;
+    this.stockWaiting = this.send("stock_search", { query, provider: this.stockProvider });
+    this.renderDrawer();
+  }
+
+  stockPick(resultId) {
+    const clip = this.sel && this.sel.kind === "clip" ? this.sel.id : null;
+    this.pause();
+    this.stockWaiting = this.send("stock_pick", { result: resultId, clip });
+    this.renderDrawer();
+  }
+
+  // 用另一段素材替换片段：保持片段在时间线上的长度，从素材开头截取。
+  useSource(sourceId, clipId) {
+    const source = this.data.sources[sourceId];
+    if (!source) return;
+    const clip = clipId ? this.clips.find((c) => c.id === clipId) : null;
+    if (!clip) {
+      this.appendSource(sourceId);
+      return;
+    }
+    this.commit(() => {
+      const length = (clip.out - clip.in) || 3;
+      clip.source = sourceId;
+      clip.in = 0;
+      clip.out = Math.min(source.duration, Math.max(MIN_CLIP, length));
+      this.sel = { kind: "clip", id: clip.id };
+    });
+    this.seek(this.clipLayout().find((x) => x.clip.id === clip.id).start);
+  }
+
+  setMusic(mode, song) {
+    this.musicState = { ...this.musicState, mode, song: mode === "song" ? song : "" };
+    if (mode === "none") this.music.pause();
+    this.dirty = true;
+    this.send("music");
+    this.renderDrawer();
+  }
+
+  onDrawerInput(e) {
+    const input = e.target.closest("[data-input]");
+    if (!input) return;
+    const name = input.dataset.input;
+    if (name === "musicVolume") {
+      this.musicState.volume = clamp(+input.value, 0, 1);
+      this.music.volume = this.musicState.volume;
+    } else if (name === "voiceVolume") {
+      this.voiceVolume = clamp(+input.value, 0, 2);
+      this.voice.volume = clamp(this.voiceVolume, 0, 1);
+    } else if (name === "query") {
+      this.stockQuery = input.value;
+      return;
+    } else {
+      return;
+    }
+    this.dirty = true;
+    const label = input.closest("label").querySelector("span");
+    const pct = Math.round(+input.value * 100);
+    label.textContent = `${name === "musicVolume" ? this.L.musicVolume : this.L.voiceVolume} · ${pct}%`;
+  }
+
+  // ------------------------------------------------------------ context menu
+  onContextMenu(e) {
+    const inTimeline = e.target.closest(".mpt-ed__content");
+    if (!inTimeline) return;
+    e.preventDefault();
+    const L = this.L;
+    const block = e.target.closest("[data-kind]");
+    const t = this.timeAt(e);
+    let items = [];
+    if (block) {
+      const kind = block.dataset.kind;
+      this.sel = { kind, id: block.dataset.id };
+      if (kind === "clip") {
+        items = [
+          ["stockfor", L.replaceStock], ["split", L.split], ["duplicate", L.duplicate],
+          ["moveleft", L.moveLeft], ["moveright", L.moveRight], ["-"], ["delete", L.delete, true],
+        ];
+      } else if (kind === "sub") {
+        items = [["edittext", L.editText], ["split", L.split], ["dupsub", L.duplicate], ["-"], ["delete", L.delete, true]];
+      } else {
+        items = [["resetmusic", L.resetMusic], ["removemusic", L.removeMusic, true]];
+      }
+      // 右键也把播放头移到点击处，“分割”即在此处切开。
+      this.seek(t);
+      this.renderTracks();
+      this.renderSide();
+      this.renderDrawer();
+      this.renderButtons();
+    } else {
+      this.seek(t);
+      items = [["addsub", L.addSubtitleHere], ["playhere", L.playFromHere]];
+    }
+    const rect = this.el.getBoundingClientRect();
+    this.menu.innerHTML = items.map(([act, label, danger]) => act === "-"
+      ? '<hr>'
+      : `<button role="menuitem" data-act="${act}" data-menu="1"${danger ? ' class="mpt-ed__menu--danger"' : ""}>${esc(label)}</button>`).join("");
+    this.menu.hidden = false;
+    const x = Math.min(e.clientX - rect.left, rect.width - this.menu.offsetWidth - 8);
+    const y = Math.min(e.clientY - rect.top, rect.height - this.menu.offsetHeight - 8);
+    this.menu.style.left = `${Math.max(4, x)}px`;
+    this.menu.style.top = `${Math.max(4, y)}px`;
+    const first = this.menu.querySelector("button");
+    if (first) first.focus({ preventScroll: true });
+  }
+
+  closeMenu() {
+    if (this.menu && !this.menu.hidden) {
+      this.menu.hidden = true;
+      this.menu.innerHTML = "";
+    }
+  }
+
+  moveSelectedClip(step) {
+    const clip = this.sel && this.sel.kind === "clip" ? this.findSel() : null;
+    if (!clip) return;
+    const index = this.clips.indexOf(clip);
+    const target = clamp(index + step, 0, this.clips.length - 1);
+    if (target === index) return;
+    this.commit(() => {
+      this.clips.splice(index, 1);
+      this.clips.splice(target, 0, clip);
+    });
+  }
+
+  duplicateSubtitle() {
+    const sub = this.sel && this.sel.kind === "sub" ? this.findSel() : null;
+    if (!sub) return;
+    const length = sub.end - sub.start;
+    const start = Math.min(sub.end, this.duration() - length);
+    if (start < 0) return;
+    this.commit(() => {
+      const copy = { ...sub, id: uid("t"), start, end: start + length };
+      this.subs.push(copy);
+      this.subs.sort((a, b) => a.start - b.start);
+      this.sel = { kind: "sub", id: copy.id };
+    });
   }
 
   setZoom(value) {
@@ -703,23 +977,65 @@ class TimelineEditor {
     });
   }
 
-  emit(type) {
-    this.pause();
-    const edits = {
+  collectEdits() {
+    return {
       clips: this.clips.map(({ id, source, in: i, out, speed }) => ({ id, source, in: i, out, speed })),
       subtitles: this.subs.map(({ id, start, end, text }) => ({ id, start, end, text })),
       subtitles_enabled: this.subsEnabled,
-      music_region: { ...this.musicRegion },
+      music: { ...this.musicState, ...this.musicRegion },
+      voice_volume: this.voiceVolume,
     };
+  }
+
+  emit(type) {
+    this.pause();
     this.dirty = false;
-    this.setTriggerValue("action", { type, edits, nonce: Date.now() });
+    this.send(type);
     this.renderSide();
   }
 
   onClick(e) {
+    const tabButton = e.target.closest("[data-tab]");
+    if (tabButton) {
+      this.openTab(tabButton.dataset.tab);
+      return;
+    }
     const button = e.target.closest("[data-act]");
     if (!button || button.disabled) return;
     const act = button.dataset.act;
+    if (button.dataset.menu) this.closeMenu();
+    if (act === "stockfor") {
+      this.openTab("stock");
+      const keyword = this.clipKeyword();
+      if (keyword && keyword !== (this.data.stock || {}).query) this.stockSearch(keyword);
+      return;
+    }
+    if (act === "stockchip") { this.stockSearch(button.dataset.query); return; }
+    if (act === "stockpick") { this.stockPick(button.dataset.result); return; }
+    if (act === "usesource") { this.useSource(button.dataset.source, this.sel && this.sel.id); return; }
+    if (act === "music") { this.setMusic(button.dataset.mode, button.dataset.song); return; }
+    if (act === "selectsub") {
+      const sub = this.subs.find((x) => x.id === button.dataset.id);
+      if (sub) {
+        this.sel = { kind: "sub", id: sub.id };
+        this.seek(sub.start);
+        this.renderAll();
+      }
+      return;
+    }
+    if (act === "edittext") {
+      const area = this.side.querySelector("textarea");
+      if (area) area.focus();
+      return;
+    }
+    if (act === "moveleft" || act === "moveright") { this.moveSelectedClip(act === "moveleft" ? -1 : 1); return; }
+    if (act === "dupsub") { this.duplicateSubtitle(); return; }
+    if (act === "resetmusic") {
+      this.commit(() => { this.musicRegion = { start: 0, end: this.duration(), offset: 0 }; });
+      return;
+    }
+    if (act === "removemusic") { this.setMusic("none", ""); return; }
+    if (act === "playhere") { this.play(); return; }
     if (act === "play") this.playing ? this.pause() : this.play();
     else if (act === "back") this.seek(this.time - 5);
     else if (act === "fwd") this.seek(this.time + 5);
@@ -736,6 +1052,7 @@ class TimelineEditor {
   }
 
   onKey(e) {
+    if (e.key === "Escape") { this.closeMenu(); return; }
     const typing = ["INPUT", "TEXTAREA", "SELECT"].includes((e.composedPath()[0] || {}).tagName);
     if (typing) return;
     if (e.key === " ") { e.preventDefault(); this.playing ? this.pause() : this.play(); }
@@ -872,10 +1189,23 @@ class TimelineEditor {
     try { this.content.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
     if (d.kind === "scrub") return;
     if (!d.moved) {
-      // 单击块：选中并把播放头移到点击处，方便立即分割。
+      // 单击块：选中并把播放头移到点击处，方便立即分割。单击片段同时打开
+      // 在线素材面板并按该片段原来的关键词搜索，便于直接挑选替换素材。
       this.seek(this.timeAt(e));
       this.renderTracks();
       this.renderSide();
+      if (d.kind === "clip-move") {
+        this.tab = "stock";
+        const keyword = this.clipKeyword();
+        const stock = this.data.stock || {};
+        if (keyword && (stock.providers || []).length && keyword !== stock.query) {
+          this.stockSearch(keyword);
+        }
+      } else if (d.kind === "sub-move") {
+        this.tab = "text";
+      }
+      this.renderDrawer();
+      this.renderButtons();
       return;
     }
     if (d.kind === "clip-move" && d.target !== undefined) {

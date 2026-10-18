@@ -1348,6 +1348,10 @@ def _render_task_table(filtered_tasks, key_prefix):
                         from webui import editor_view
 
                         editor_view.open_editor(task_id)
+                        # 换一个 popover key 让任务管理弹层关闭，避免盖住编辑器。
+                        st.session_state["task_manager_popover_nonce"] = (
+                            st.session_state.get("task_manager_popover_nonce", 0) + 1
+                        )
                         st.rerun()
 
                 with action_cols[4]:

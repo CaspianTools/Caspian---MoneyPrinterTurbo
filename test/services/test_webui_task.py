@@ -757,9 +757,10 @@ def test_generation_submit_skips_duplicate_config_save():
     assert isinstance(controls.body[-1], ast.Return)
     assert ast.unparse(controls.body[-1].value) == "start_button"
 
+    # 生成控件渲染在右侧摘要栏的 with 块内，赋值语句不在函数体顶层。
     submitted_assignment = next(
         node
-        for node in application.body
+        for node in ast.walk(application)
         if isinstance(node, ast.Assign)
         and any(
             isinstance(target, ast.Name) and target.id == "generation_submitted"

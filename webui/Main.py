@@ -1996,7 +1996,10 @@ def render_onboarding_tour():
 
 
 def _render_generation_logs(task_id):
-    """渲染后台任务日志快照，不从工作线程访问 Streamlit 会话状态。"""
+    """渲染后台任务日志快照，不从工作线程访问 Streamlit 会话状态。
+
+    日志折叠在“技术日志”中，进度改由阶段清单展示；失败原因另有错误提示。
+    """
     if config.ui.get("hide_log", False):
         return
 
@@ -2004,7 +2007,37 @@ def _render_generation_logs(task_id):
     if not log_records:
         return
 
-    st.code("\n".join(log_records))
+    with st.expander(tr("Technical Log")):
+        st.code("\n".join(log_records))
+
+
+# 生成流水线在每个阶段开始时写入的进度值（app/services/task.py）：
+# 10 文案与关键词，20 配音，30 字幕，40 素材，50 起为合成视频。
+GENERATION_STAGES = (
+    (10, "Stage Script"),
+    (20, "Stage Voiceover"),
+    (30, "Stage Subtitles"),
+    (40, "Stage Footage"),
+    (50, "Stage Render"),
+)
+
+
+def _render_generation_stages(progress):
+    """把整体进度换算为阶段清单：已完成打勾，当前阶段高亮，其余置灰。"""
+    lines = []
+    for index, (stage_start, label_key) in enumerate(GENERATION_STAGES):
+        stage_end = (
+            GENERATION_STAGES[index + 1][0]
+            if index + 1 < len(GENERATION_STAGES)
+            else 100
+        )
+        if progress >= stage_end:
+            lines.append(f":green[:material/check_circle:] {tr(label_key)}")
+        elif progress >= stage_start:
+            lines.append(f":red[:material/progress_activity:] **{tr(label_key)}**")
+        else:
+            lines.append(f":gray[:material/radio_button_unchecked: {tr(label_key)}]")
+    st.markdown("  \n".join(lines))
 
 
 def _render_generation_task_snapshot(task_id, task):
@@ -2022,6 +2055,8 @@ def _render_generation_task_snapshot(task_id, task):
             progress,
             text=f"{tr('Task Progress')}: {progress}%",
         )
+        _render_generation_stages(progress)
+        st.caption(tr("Generation Runs In Background"))
         _render_generation_logs(task_id)
         return
 
@@ -2082,29 +2117,28 @@ def _render_generation_task_snapshot(task_id, task):
         if not available_videos:
             st.warning(tr("Generated Video Files Unavailable"))
         else:
-            player_cols = st.columns(len(available_videos) * 2 + 1)
-            for player_index, (video_index, url) in enumerate(available_videos):
-                with player_cols[player_index * 2 + 1]:
-                    st.video(url)
-                    download_label = tr("Download Video")
-                    if len(video_files) > 1:
-                        download_label = f"{download_label} {video_index + 1}"
-                    download_name = _build_video_download_name(
-                        task.get("video_subject"),
-                        video_index + 1,
-                        len(video_files),
+            # 结果位于右侧窄栏，多个成片纵向排列，保持每个预览足够大。
+            for video_index, url in available_videos:
+                st.video(url)
+                download_label = tr("Download Video")
+                if len(video_files) > 1:
+                    download_label = f"{download_label} {video_index + 1}"
+                download_name = _build_video_download_name(
+                    task.get("video_subject"),
+                    video_index + 1,
+                    len(video_files),
+                )
+                with open(url, "rb") as video_file:
+                    st.download_button(
+                        download_label,
+                        data=video_file,
+                        file_name=download_name,
+                        mime=mimetypes.guess_type(url)[0] or "video/mp4",
+                        key=f"download_generated_video_{task_id}_{video_index}",
+                        icon=":material/download:",
+                        on_click="ignore",
+                        use_container_width=True,
                     )
-                    with open(url, "rb") as video_file:
-                        st.download_button(
-                            download_label,
-                            data=video_file,
-                            file_name=download_name,
-                            mime=mimetypes.guess_type(url)[0] or "video/mp4",
-                            key=f"download_generated_video_{task_id}_{video_index}",
-                            icon=":material/download:",
-                            on_click="ignore",
-                            use_container_width=True,
-                        )
     except Exception as exc:
         logger.exception(
             f"failed to render generated video preview: task_id={task_id}, "
@@ -5172,6 +5206,23 @@ def _render_script_settings(panel, params):
             )
 
 
+def _video_source_labels():
+    """素材来源的展示名称；视频设置下拉框和右侧摘要共用同一份映射。"""
+    return {
+        "pexels": tr("Pexels"),
+        "pixabay": tr("Pixabay"),
+        "coverr": tr("Coverr"),
+        "wavespeed": tr("WaveSpeed AI Video"),
+        "volcengine_seedance": tr("Volcano Engine Seedance"),
+        "ofox": tr("OFox AI Video"),
+        "metaso_minimax": tr("Metaso MiniMax H3"),
+        "muapi": tr("MuAPI AI Video"),
+        "loomloom": tr("Shengsuan Cloud AI Video"),
+        "openai_image": tr("OpenAI Compatible Text-to-Image"),
+        "local": tr("Local file"),
+    }
+
+
 def _render_video_settings(panel, params):
     """渲染视频设置并返回本次选择的本地素材。"""
     uploaded_files = []
@@ -5182,19 +5233,7 @@ def _render_video_settings(panel, params):
                 (tr("Sequential"), "sequential"),
                 (tr("Random"), "random"),
             ]
-            video_source_labels = {
-                "pexels": tr("Pexels"),
-                "pixabay": tr("Pixabay"),
-                "coverr": tr("Coverr"),
-                "wavespeed": tr("WaveSpeed AI Video"),
-                "volcengine_seedance": tr("Volcano Engine Seedance"),
-                "ofox": tr("OFox AI Video"),
-                "metaso_minimax": tr("Metaso MiniMax H3"),
-                "muapi": tr("MuAPI AI Video"),
-                "loomloom": tr("Shengsuan Cloud AI Video"),
-                "openai_image": tr("OpenAI Compatible Text-to-Image"),
-                "local": tr("Local file"),
-            }
+            video_source_labels = _video_source_labels()
             saved_video_source_name = str(
                 config.app.get("video_source", "pexels") or "pexels"
             )
@@ -8367,41 +8406,146 @@ def _render_generation_controls(
     return start_button
 
 
+def _go_to_settings_step(tabs_key, label):
+    # 在回调中写入标签页状态：回调先于下一次脚本执行，st.tabs 创建前即可生效。
+    st.session_state[tabs_key] = label
+
+
+def _render_settings_step_navigation(panel, step_index, labels, tabs_key):
+    """在每个设置标签页底部渲染“上一步/下一步”，引导用户按顺序完成设置。"""
+    with panel:
+        back_column, next_column = st.columns(2)
+        if step_index > 0:
+            back_column.button(
+                tr("Step Back"),
+                key=f"settings_step_back_{step_index}",
+                on_click=_go_to_settings_step,
+                args=(tabs_key, labels[step_index - 1]),
+                icon=":material/arrow_back:",
+            )
+        if step_index < len(labels) - 1:
+            with next_column:
+                with st.container(horizontal=True, horizontal_alignment="right"):
+                    st.button(
+                        tr("Step Next").format(step=labels[step_index + 1]),
+                        key=f"settings_step_next_{step_index}",
+                        on_click=_go_to_settings_step,
+                        args=(tabs_key, labels[step_index + 1]),
+                    )
+
+
+def _render_video_summary(params, voice_mode):
+    """汇总四个标签页的关键选择，用户无需逐个打开标签页即可确认设置。"""
+    not_set = tr("Summary Not Set")
+    topic = (params.video_subject or "").strip()
+    if not topic:
+        # 只填写文案时用文案开头代替主题。
+        script = " ".join((params.video_script or "").split())
+        topic = script[:60] + ("…" if len(script) > 60 else "")
+    source = _video_source_labels().get(params.video_source, params.video_source)
+    if voice_mode == VOICE_MODE_NONE:
+        voice_summary = tr("Summary Off")
+    elif voice_mode == VOICE_MODE_UPLOAD:
+        voice_summary = tr("Upload Voiceover")
+    else:
+        voice_summary = f"{params.voice_name or not_set} · {params.voice_rate or 1.0:.1f}×"
+    bgm_labels = {
+        "random": tr("Random Background Music"),
+        "preset": tr("Preset Song"),
+        "custom": tr("Custom Background Music"),
+        "sonilo": tr("Sonilo Background Music"),
+        "elevenlabs": tr("ElevenLabs Background Music"),
+    }
+    if bgm_service.should_use_bgm(params.bgm_type, params.bgm_volume):
+        music_summary = (
+            f"{bgm_labels.get(params.bgm_type, params.bgm_type)} · "
+            f"{round((params.bgm_volume or 0) * 100)}%"
+        )
+    else:
+        music_summary = tr("Summary Off")
+    position_labels = {
+        "top": tr("Top"),
+        "center": tr("Center"),
+        "bottom": tr("Bottom"),
+        "two_thirds_bottom": tr("2/3 from Bottom"),
+        "custom": tr("Custom"),
+    }
+    if params.subtitle_enabled:
+        subtitle_summary = (
+            f"{position_labels.get(params.subtitle_position, params.subtitle_position)}"
+            f" · {params.font_size}px"
+        )
+    else:
+        subtitle_summary = tr("Summary Off")
+    rows = [
+        (tr("Summary Topic"), topic or not_set),
+        (
+            tr("Summary Format"),
+            f"{VideoAspect(params.video_aspect).value} · ×{params.video_count}",
+        ),
+        (tr("Summary Footage"), source),
+        (tr("Summary Voice"), voice_summary),
+        (tr("Summary Music"), music_summary),
+        (tr("Summary Subtitles"), subtitle_summary),
+    ]
+    with st.container(border=True, key="video_summary_card"):
+        st.markdown(f"**{tr('Video Summary')}**")
+        # 摘要值来自用户输入（主题、音色名），作为纯文本渲染，避免 Markdown 注入。
+        for label, value in rows:
+            label_column, value_column = st.columns([0.38, 0.62])
+            label_column.caption(label)
+            value_column.text(str(value))
+
+
 def _render_application():
     """按固定顺序渲染顶部栏、弹窗、生成表单和任务结果。"""
     _render_top_bar()
 
-    if st.session_state.get("settings_dialog_open", False):
-        _render_settings_dialog()
+    # 弹窗和一次性提示放进固定位置的容器。否则提示出现与否会改变下方设置区
+    # 在页面中的序号，Streamlit 会整块重建表单（输入框失去焦点）。
+    with st.container(key="main_notices"):
+        if st.session_state.get("settings_dialog_open", False):
+            _render_settings_dialog()
 
-    if _apply_pending_settings_preset():
-        st.success(tr("Settings Preset Imported"))
+        if _apply_pending_settings_preset():
+            st.success(tr("Settings Preset Imported"))
 
-    restore_applied = _apply_pending_task_restore()
-    restore_candidate_id = st.session_state.get("task_restore_candidate_id")
-    if restore_candidate_id:
-        _render_task_restore_dialog(restore_candidate_id)
-    restore_succeeded = st.session_state.pop("task_restore_succeeded", False)
-    if restore_applied or restore_succeeded:
-        st.success(tr("Task Configuration Loaded"))
+        restore_applied = _apply_pending_task_restore()
+        restore_candidate_id = st.session_state.get("task_restore_candidate_id")
+        if restore_candidate_id:
+            _render_task_restore_dialog(restore_candidate_id)
+        restore_succeeded = st.session_state.pop("task_restore_succeeded", False)
+        if restore_applied or restore_succeeded:
+            st.success(tr("Task Configuration Loaded"))
 
-    # 四个设置卡片以标签页展示。不设置 on_change，Streamlit 会在每次 rerun 时
-    # 渲染全部标签页，生成参数仍能从所有卡片收集；key 让当前标签页在 rerun 后保持。
+    # 左侧是四个按步骤编号的设置标签页，右侧是摘要、生成按钮和任务进度，
+    # 生成入口因此始终可见，无需滚动到页面底部。on_change="rerun" 让当前
+    # 标签页由服务端记录，“下一步/上一步”按钮才能切换标签页；未检查 tab.open，
+    # 所以每次 rerun 仍渲染全部标签页，生成参数始终从所有卡片收集。
     # 卡片标题的 locale 文案带有 Markdown 加粗，标签页名称去掉星号。
     settings_tab_labels = [
-        tr(label).replace("**", "").strip()
-        for label in (
-            "Video Script Settings",
-            "Video Settings",
-            "Audio Settings",
-            "Subtitle Settings",
+        f"{index} · " + tr(label).replace("**", "").strip()
+        for index, label in enumerate(
+            (
+                "Video Script Settings",
+                "Video Settings",
+                "Audio Settings",
+                "Subtitle Settings",
+            ),
+            start=1,
         )
     ]
-    with st.container(key="main_settings_grid"):
-        left_panel, middle_panel, audio_panel, right_panel = st.tabs(
-            settings_tab_labels,
-            key=localized_widget_key("main_settings_tabs"),
-        )
+    settings_tabs_key = localized_widget_key("main_settings_tabs")
+    with st.container(key="main_layout"):
+        settings_column, summary_column = st.columns([0.66, 0.34], gap="large")
+    with settings_column:
+        with st.container(key="main_settings_grid"):
+            settings_tabs = st.tabs(
+                settings_tab_labels,
+                key=settings_tabs_key,
+                on_change="rerun",
+            )
+    left_panel, middle_panel, audio_panel, right_panel = settings_tabs
 
     params = VideoParams(video_subject="")
     params.match_materials_to_script = bool(
@@ -8416,13 +8560,20 @@ def _render_application():
 
     _render_subtitle_settings(right_panel, params)
 
-    generation_submitted = _render_generation_controls(
-        params,
-        uploaded_files,
-        uploaded_audio_file,
-        uploaded_bgm_file,
-        voice_mode,
-    )
+    for step_index, tab in enumerate(settings_tabs):
+        _render_settings_step_navigation(
+            tab, step_index, settings_tab_labels, settings_tabs_key
+        )
+
+    with summary_column:
+        _render_video_summary(params, voice_mode)
+        generation_submitted = _render_generation_controls(
+            params,
+            uploaded_files,
+            uploaded_audio_file,
+            uploaded_bgm_file,
+            voice_mode,
+        )
 
     # 生成分支在启动后台线程前已经请求过保存。普通控件交互继续请求非阻塞保存；
     # 如果后台任务正在使用配置，配置层会在任务结束时自动应用并落盘最新值。

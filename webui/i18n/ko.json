@@ -423,6 +423,24 @@
     "OFox Upstream Vendor Help": "OFox 영상 생성에 사용할 업스트림 공급사입니다. BytePlus(국제)가 기본값으로 콘텐츠 정책이 일관됩니다. Volcano Engine은 중국 본토 공급사이며, 자동은 OFox 게이트웨이가 공급사 간 부하를 분산합니다.",
     "OFox Vendor BytePlus": "BytePlus (국제, 기본값)",
     "OFox Vendor Volcengine": "Volcano Engine (중국 본토)",
-    "OFox Vendor Auto": "자동 (게이트웨이 부하 분산)"
+    "OFox Vendor Auto": "자동 (게이트웨이 부하 분산)",
+    "Step Back": "이전",
+    "Step Next": "다음: {step}",
+    "Video Summary": "요약",
+    "Summary Topic": "주제",
+    "Summary Format": "형식",
+    "Summary Footage": "영상 소스",
+    "Summary Voice": "음성",
+    "Summary Music": "음악",
+    "Summary Subtitles": "자막",
+    "Summary Not Set": "설정 안 됨",
+    "Summary Off": "끔",
+    "Stage Script": "스크립트와 키워드 작성",
+    "Stage Voiceover": "음성 생성",
+    "Stage Subtitles": "자막 타이밍 생성",
+    "Stage Footage": "영상 소스 검색 및 다운로드",
+    "Stage Render": "영상 렌더링",
+    "Technical Log": "기술 로그",
+    "Generation Runs In Background": "백그라운드에서 실행됩니다. 계속 편집하거나 이 페이지를 닫아도 됩니다."
   }
 }

@@ -603,6 +603,24 @@
     "kimi_code.oauth.region_mismatch": "当前凭证属于「{authorized}」区域，但所选 API Platform 为「{selected}」。请求将按凭证区域「{authorized}」发出；如需切换区域，请重新登录。",
     "kimi_code.oauth.network_error": "无法连接 Kimi 授权服务（网络错误）。请检查网络连接后重新发起登录。",
     "kimi_code.oauth.changed": "登录状态已在其他页面变更，本次授权已停止。请按需重新登录。",
-    "kimi_code.oauth.poll_retry": "检查授权状态时网络异常，正在自动重试……"
+    "kimi_code.oauth.poll_retry": "检查授权状态时网络异常，正在自动重试……",
+    "Step Back": "上一步",
+    "Step Next": "下一步：{step}",
+    "Video Summary": "摘要",
+    "Summary Topic": "主题",
+    "Summary Format": "画面",
+    "Summary Footage": "素材",
+    "Summary Voice": "配音",
+    "Summary Music": "背景音乐",
+    "Summary Subtitles": "字幕",
+    "Summary Not Set": "未设置",
+    "Summary Off": "关闭",
+    "Stage Script": "生成文案和关键词",
+    "Stage Voiceover": "生成配音",
+    "Stage Subtitles": "生成字幕",
+    "Stage Footage": "搜索并下载素材",
+    "Stage Render": "合成视频",
+    "Technical Log": "技术日志",
+    "Generation Runs In Background": "任务在后台运行，可以继续编辑或关闭此页面。"
   }
 }

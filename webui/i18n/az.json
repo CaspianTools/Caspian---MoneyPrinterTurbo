@@ -423,6 +423,24 @@
     "OFox Upstream Vendor Help": "OFox ilə video yaratmanı təmin edən əsas xidmət provayderi. BytePlus (beynəlxalq) vahid məzmun siyasəti olan standart provayderdir; Volcano Engine materik Çindəki provayderdir; avtomatik seçim OFox şlüzünə yükü provayderlər arasında tarazlaşdırmağa imkan verir.",
     "OFox Vendor BytePlus": "BytePlus (beynəlxalq, standart)",
     "OFox Vendor Volcengine": "Volcano Engine (materik Çin)",
-    "OFox Vendor Auto": "Avtomatik (şlüzdə yükün tarazlaşdırılması)"
+    "OFox Vendor Auto": "Avtomatik (şlüzdə yükün tarazlaşdırılması)",
+    "Step Back": "Geri",
+    "Step Next": "Növbəti: {step}",
+    "Video Summary": "Xülasə",
+    "Summary Topic": "Mövzu",
+    "Summary Format": "Format",
+    "Summary Footage": "Görüntülər",
+    "Summary Voice": "Səs",
+    "Summary Music": "Musiqi",
+    "Summary Subtitles": "Altyazılar",
+    "Summary Not Set": "Təyin edilməyib",
+    "Summary Off": "Söndürülüb",
+    "Stage Script": "Ssenari və açar sözlər yazılır",
+    "Stage Voiceover": "Səsləndirmə yaradılır",
+    "Stage Subtitles": "Altyazılar sinxronlaşdırılır",
+    "Stage Footage": "Görüntülər axtarılır və yüklənir",
+    "Stage Render": "Video hazırlanır",
+    "Technical Log": "Texniki jurnal",
+    "Generation Runs In Background": "Arxa planda işləyir — redaktəyə davam edə və ya bu səhifəni bağlaya bilərsiniz."
   }
 }

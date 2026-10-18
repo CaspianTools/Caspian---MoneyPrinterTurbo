@@ -1995,10 +1995,10 @@ def render_onboarding_tour():
         tour.start()
 
 
-def _render_generation_logs(task_id, expanded=False):
+def _render_generation_logs(task_id):
     """渲染后台任务日志快照，不从工作线程访问 Streamlit 会话状态。
 
-    日志默认折叠，进度改由阶段清单展示；失败时展开，便于直接排查原因。
+    日志折叠在“技术日志”中，进度改由阶段清单展示；失败原因另有错误提示。
     """
     if config.ui.get("hide_log", False):
         return
@@ -2007,7 +2007,7 @@ def _render_generation_logs(task_id, expanded=False):
     if not log_records:
         return
 
-    with st.expander(tr("Technical Log"), expanded=expanded):
+    with st.expander(tr("Technical Log")):
         st.code("\n".join(log_records))
 
 
@@ -2066,11 +2066,11 @@ def _render_generation_task_snapshot(task_id, task):
         message = tr("Video Generation Failed")
         st.error(f"{message}: {error}" if error else message)
         if not video_files:
-            _render_generation_logs(task_id, expanded=True)
+            _render_generation_logs(task_id)
             return
     elif state != const.TASK_STATE_COMPLETE or not video_files:
         st.error(tr("Video Generation Failed"))
-        _render_generation_logs(task_id, expanded=True)
+        _render_generation_logs(task_id)
         return
 
     if state == const.TASK_STATE_COMPLETE:
@@ -2119,27 +2119,26 @@ def _render_generation_task_snapshot(task_id, task):
         else:
             # 结果位于右侧窄栏，多个成片纵向排列，保持每个预览足够大。
             for video_index, url in available_videos:
-                with st.container():
-                    st.video(url)
-                    download_label = tr("Download Video")
-                    if len(video_files) > 1:
-                        download_label = f"{download_label} {video_index + 1}"
-                    download_name = _build_video_download_name(
-                        task.get("video_subject"),
-                        video_index + 1,
-                        len(video_files),
+                st.video(url)
+                download_label = tr("Download Video")
+                if len(video_files) > 1:
+                    download_label = f"{download_label} {video_index + 1}"
+                download_name = _build_video_download_name(
+                    task.get("video_subject"),
+                    video_index + 1,
+                    len(video_files),
+                )
+                with open(url, "rb") as video_file:
+                    st.download_button(
+                        download_label,
+                        data=video_file,
+                        file_name=download_name,
+                        mime=mimetypes.guess_type(url)[0] or "video/mp4",
+                        key=f"download_generated_video_{task_id}_{video_index}",
+                        icon=":material/download:",
+                        on_click="ignore",
+                        use_container_width=True,
                     )
-                    with open(url, "rb") as video_file:
-                        st.download_button(
-                            download_label,
-                            data=video_file,
-                            file_name=download_name,
-                            mime=mimetypes.guess_type(url)[0] or "video/mp4",
-                            key=f"download_generated_video_{task_id}_{video_index}",
-                            icon=":material/download:",
-                            on_click="ignore",
-                            use_container_width=True,
-                        )
     except Exception as exc:
         logger.exception(
             f"failed to render generated video preview: task_id={task_id}, "
@@ -8502,19 +8501,22 @@ def _render_application():
     """按固定顺序渲染顶部栏、弹窗、生成表单和任务结果。"""
     _render_top_bar()
 
-    if st.session_state.get("settings_dialog_open", False):
-        _render_settings_dialog()
+    # 弹窗和一次性提示放进固定位置的容器。否则提示出现与否会改变下方设置区
+    # 在页面中的序号，Streamlit 会整块重建表单（输入框失去焦点）。
+    with st.container(key="main_notices"):
+        if st.session_state.get("settings_dialog_open", False):
+            _render_settings_dialog()
 
-    if _apply_pending_settings_preset():
-        st.success(tr("Settings Preset Imported"))
+        if _apply_pending_settings_preset():
+            st.success(tr("Settings Preset Imported"))
 
-    restore_applied = _apply_pending_task_restore()
-    restore_candidate_id = st.session_state.get("task_restore_candidate_id")
-    if restore_candidate_id:
-        _render_task_restore_dialog(restore_candidate_id)
-    restore_succeeded = st.session_state.pop("task_restore_succeeded", False)
-    if restore_applied or restore_succeeded:
-        st.success(tr("Task Configuration Loaded"))
+        restore_applied = _apply_pending_task_restore()
+        restore_candidate_id = st.session_state.get("task_restore_candidate_id")
+        if restore_candidate_id:
+            _render_task_restore_dialog(restore_candidate_id)
+        restore_succeeded = st.session_state.pop("task_restore_succeeded", False)
+        if restore_applied or restore_succeeded:
+            st.success(tr("Task Configuration Loaded"))
 
     # 左侧是四个按步骤编号的设置标签页，右侧是摘要、生成按钮和任务进度，
     # 生成入口因此始终可见，无需滚动到页面底部。on_change="rerun" 让当前

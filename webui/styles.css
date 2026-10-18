@@ -371,6 +371,25 @@ div[class*="st-key-task_row_"] button[kind="secondary"] p {
 }
 
 
+/* 设置区与右侧摘要栏在 1100px 以下改为上下排列，避免摘要栏过窄。
+   Streamlit 自身只在约 640px 以下堆叠列。 */
+@media (max-width: 1100px) {
+    div[class*="st-key-main_layout"]
+        > div[data-testid="stLayoutWrapper"]
+        > div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+    }
+
+    div[class*="st-key-main_layout"]
+        > div[data-testid="stLayoutWrapper"]
+        > div[data-testid="stHorizontalBlock"]
+        > div[data-testid="stColumn"] {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+}
+
 /* 中等宽度下缩小品牌标题。 */
 @media (min-width: 701px) and (max-width: 1500px) {
     .mpt-brand__name {

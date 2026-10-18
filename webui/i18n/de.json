@@ -423,6 +423,24 @@
     "OFox Upstream Vendor Help": "Welcher Upstream-Anbieter die OFox-Videogenerierung bedient. BytePlus (international) ist der Standard mit einheitlicher Inhaltsrichtlinie; Volcano Engine ist der Festland-China-Anbieter; Auto lässt das OFox-Gateway die Last über die Anbieter verteilen.",
     "OFox Vendor BytePlus": "BytePlus (international, Standard)",
     "OFox Vendor Volcengine": "Volcano Engine (Festlandchina)",
-    "OFox Vendor Auto": "Auto (Gateway-Lastverteilung)"
+    "OFox Vendor Auto": "Auto (Gateway-Lastverteilung)",
+    "Step Back": "Zurück",
+    "Step Next": "Weiter: {step}",
+    "Video Summary": "Zusammenfassung",
+    "Summary Topic": "Thema",
+    "Summary Format": "Format",
+    "Summary Footage": "Videomaterial",
+    "Summary Voice": "Stimme",
+    "Summary Music": "Musik",
+    "Summary Subtitles": "Untertitel",
+    "Summary Not Set": "Nicht festgelegt",
+    "Summary Off": "Aus",
+    "Stage Script": "Skript und Schlüsselwörter schreiben",
+    "Stage Voiceover": "Sprachausgabe erzeugen",
+    "Stage Subtitles": "Untertitel timen",
+    "Stage Footage": "Videomaterial suchen und laden",
+    "Stage Render": "Video rendern",
+    "Technical Log": "Technisches Protokoll",
+    "Generation Runs In Background": "Läuft im Hintergrund – du kannst weiter bearbeiten oder die Seite schließen."
   }
 }

@@ -603,6 +603,24 @@
     "kimi_code.oauth.region_mismatch": "Signed in for region \"{authorized}\", but the selected API Platform is \"{selected}\". Requests will use \"{authorized}\" to match your credential; sign in again to switch regions.",
     "kimi_code.oauth.network_error": "Could not reach the Kimi authorization service (network error). Check your connection, then start sign-in again.",
     "kimi_code.oauth.changed": "Sign-in state changed in another page. This authorization has stopped; sign in again if needed.",
-    "kimi_code.oauth.poll_retry": "Network error while checking the authorization status; retrying automatically…"
+    "kimi_code.oauth.poll_retry": "Network error while checking the authorization status; retrying automatically…",
+    "Step Back": "Back",
+    "Step Next": "Next: {step}",
+    "Video Summary": "Summary",
+    "Summary Topic": "Topic",
+    "Summary Format": "Format",
+    "Summary Footage": "Footage",
+    "Summary Voice": "Voice",
+    "Summary Music": "Music",
+    "Summary Subtitles": "Subtitles",
+    "Summary Not Set": "Not set",
+    "Summary Off": "Off",
+    "Stage Script": "Write script & keywords",
+    "Stage Voiceover": "Generate voiceover",
+    "Stage Subtitles": "Time subtitles",
+    "Stage Footage": "Find & download footage",
+    "Stage Render": "Render video",
+    "Technical Log": "Technical log",
+    "Generation Runs In Background": "Runs in the background — you can keep editing or close this page."
   }
 }

@@ -423,6 +423,24 @@
     "OFox Upstream Vendor Help": "Vendor upstream yang melayani pembuatan video OFox. BytePlus (internasional) adalah bawaan dengan kebijakan konten yang konsisten; Volcano Engine adalah vendor Tiongkok daratan; Auto membiarkan gateway OFox menyeimbangkan beban antar vendor.",
     "OFox Vendor BytePlus": "BytePlus (internasional, bawaan)",
     "OFox Vendor Volcengine": "Volcano Engine (Tiongkok daratan)",
-    "OFox Vendor Auto": "Otomatis (penyeimbangan gateway)"
+    "OFox Vendor Auto": "Otomatis (penyeimbangan gateway)",
+    "Step Back": "Kembali",
+    "Step Next": "Berikutnya: {step}",
+    "Video Summary": "Ringkasan",
+    "Summary Topic": "Topik",
+    "Summary Format": "Format",
+    "Summary Footage": "Footage",
+    "Summary Voice": "Suara",
+    "Summary Music": "Musik",
+    "Summary Subtitles": "Subtitle",
+    "Summary Not Set": "Belum diatur",
+    "Summary Off": "Mati",
+    "Stage Script": "Menulis skrip dan kata kunci",
+    "Stage Voiceover": "Membuat sulih suara",
+    "Stage Subtitles": "Menyelaraskan subtitle",
+    "Stage Footage": "Mencari dan mengunduh footage",
+    "Stage Render": "Merender video",
+    "Technical Log": "Log teknis",
+    "Generation Runs In Background": "Berjalan di latar belakang — Anda bisa terus mengedit atau menutup halaman ini."
   }
 }

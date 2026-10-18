@@ -423,6 +423,24 @@
     "OFox Upstream Vendor Help": "Fournisseur amont utilisé pour la génération vidéo OFox. BytePlus (international) est la valeur par défaut, avec une politique de contenu cohérente ; Volcano Engine est le fournisseur de Chine continentale ; Auto laisse la passerelle OFox répartir la charge entre les fournisseurs.",
     "OFox Vendor BytePlus": "BytePlus (international, défaut)",
     "OFox Vendor Volcengine": "Volcano Engine (Chine continentale)",
-    "OFox Vendor Auto": "Auto (répartition par la passerelle)"
+    "OFox Vendor Auto": "Auto (répartition par la passerelle)",
+    "Step Back": "Retour",
+    "Step Next": "Suivant : {step}",
+    "Video Summary": "Résumé",
+    "Summary Topic": "Sujet",
+    "Summary Format": "Format",
+    "Summary Footage": "Séquences",
+    "Summary Voice": "Voix",
+    "Summary Music": "Musique",
+    "Summary Subtitles": "Sous-titres",
+    "Summary Not Set": "Non défini",
+    "Summary Off": "Désactivé",
+    "Stage Script": "Rédiger le script et les mots-clés",
+    "Stage Voiceover": "Générer la voix off",
+    "Stage Subtitles": "Synchroniser les sous-titres",
+    "Stage Footage": "Rechercher et télécharger les séquences",
+    "Stage Render": "Rendre la vidéo",
+    "Technical Log": "Journal technique",
+    "Generation Runs In Background": "S'exécute en arrière-plan : vous pouvez continuer à modifier ou fermer cette page."
   }
 }

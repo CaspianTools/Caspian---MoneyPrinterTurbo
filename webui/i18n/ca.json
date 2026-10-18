@@ -423,6 +423,24 @@
     "OFox Upstream Vendor Help": "Tria qui genera els vídeos a través d'OFox. BytePlus (internacional) és l'opció per defecte i aplica una política de contingut uniforme. Volcano Engine és el proveïdor de la Xina continental. L'opció automàtica reparteix les peticions entre proveïdors.",
     "OFox Vendor BytePlus": "BytePlus (internacional, per defecte)",
     "OFox Vendor Volcengine": "Volcano Engine (Xina continental)",
-    "OFox Vendor Auto": "Automàtic (repartiment de peticions)"
+    "OFox Vendor Auto": "Automàtic (repartiment de peticions)",
+    "Step Back": "Enrere",
+    "Step Next": "Següent: {step}",
+    "Video Summary": "Resum",
+    "Summary Topic": "Tema",
+    "Summary Format": "Format",
+    "Summary Footage": "Metratge",
+    "Summary Voice": "Veu",
+    "Summary Music": "Música",
+    "Summary Subtitles": "Subtítols",
+    "Summary Not Set": "Sense definir",
+    "Summary Off": "Desactivat",
+    "Stage Script": "Escriure el guió i les paraules clau",
+    "Stage Voiceover": "Generar la veu",
+    "Stage Subtitles": "Sincronitzar els subtítols",
+    "Stage Footage": "Cercar i baixar metratge",
+    "Stage Render": "Renderitzar el vídeo",
+    "Technical Log": "Registre tècnic",
+    "Generation Runs In Background": "S'executa en segon pla: pots continuar editant o tancar aquesta pàgina."
   }
 }
